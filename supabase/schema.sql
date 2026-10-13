@@ -91,6 +91,9 @@ drop policy if exists "auth delete parts" on public.parts;
 create policy "auth delete parts" on public.parts
   for delete to authenticated using (true);
 
+-- Eksplicitte rettigheder (nyere Supabase-projekter giver dem ikke altid automatisk)
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.part_types, public.dealers, public.parts to authenticated;
 grant select on public.parts_view to authenticated;
 
 -- ---------- Eksempeldata (valgfrit – slet hvis ikke ønsket) ----------
