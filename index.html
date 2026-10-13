@@ -11,6 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="Reservedele">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
+  <link rel="preload" as="image" href="icons/rotax-logo.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -19,7 +20,7 @@
 <!-- ============ LOGIN ============ -->
 <section id="view-login" class="view" hidden>
   <div class="login-card">
-    <div class="brand-mark big">RD</div>
+    <img src="icons/rotax-logo.png" alt="Rotax Racing" class="login-logo">
     <h1>Reservedele</h1>
     <p class="muted">Log ind for at fortsætte</p>
     <form id="login-form" autocomplete="on">
@@ -34,11 +35,11 @@
 <!-- ============ APP ============ -->
 <div id="app" hidden>
   <header class="topbar">
-    <div class="brand"><span class="brand-mark">RD</span><span>Reservedele</span></div>
     <nav class="tabs">
       <a href="#/" data-route="home" class="tab">Forside</a>
       <a href="#/setup" data-route="setup" class="tab">Setup</a>
     </nav>
+    <div class="brand"><span class="brand-title">Reservedele</span><img src="icons/rotax-logo.png" alt="Rotax Racing" class="brand-logo"></div>
   </header>
 
   <main>
