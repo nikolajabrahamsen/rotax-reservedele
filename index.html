@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Reservedele</title>
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Reservedele">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<section id="view-login" class="view" hidden>
+  <div class="login-card">
+    <div class="brand-mark big">RD</div>
+    <h1>Reservedele</h1>
+    <p class="muted">Log ind for at fortsætte</p>
+    <form id="login-form" autocomplete="on">
+      <label>E-mail<input type="email" id="login-email" required autocomplete="username"></label>
+      <label>Adgangskode<input type="password" id="login-pass" required autocomplete="current-password"></label>
+      <button class="btn primary block" type="submit">Log ind</button>
+      <p id="login-error" class="error" hidden></p>
+    </form>
+  </div>
+</section>
+
+<!-- ============ APP ============ -->
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">RD</span><span>Reservedele</span></div>
+    <nav class="tabs">
+      <a href="#/" data-route="home" class="tab">Forside</a>
+      <a href="#/setup" data-route="setup" class="tab">Setup</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ---------- FORSIDE ---------- -->
+    <section id="view-home" class="view">
+
+      <div class="card">
+        <h2>Søg stregkode</h2>
+        <form id="search-form" class="scan-row">
+          <input id="search-input" type="text" inputmode="text" placeholder="Scan eller skriv stregkode"
+                 autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button type="button" class="btn scan" data-scan-target="search-input" aria-label="Scan med kamera">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>
+            <span>Scan</span>
+          </button>
+          <button type="submit" class="btn primary">Søg</button>
+        </form>
+        <div id="search-result"></div>
+      </div>
+
+      <div class="card">
+        <h2>Opret ny komponent</h2>
+        <form id="create-form" class="form-grid">
+          <label class="span-2">Stregkode
+            <div class="scan-row">
+              <input id="create-barcode" type="text" required placeholder="Scan eller skriv stregkode"
+                     autocomplete="off" autocapitalize="off" spellcheck="false">
+              <button type="button" class="btn scan" data-scan-target="create-barcode" aria-label="Scan med kamera">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>
+                <span>Scan</span>
+              </button>
+            </div>
+          </label>
+          <label>Type
+            <select id="create-type" required></select>
+          </label>
+          <label>Forhandler
+            <select id="create-dealer" required></select>
+          </label>
+          <label class="span-2"><span>Note <span class="muted small">(valgfri)</span></span>
+            <input id="create-note" type="text" maxlength="200">
+          </label>
+          <p class="muted small span-2">Dato og tid gemmes automatisk.</p>
+          <button type="submit" class="btn primary block span-2">Gem komponent</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Seneste registreringer</h2>
+          <button id="export-btn" class="btn ghost small-btn">Eksportér CSV</button>
+        </div>
+        <div class="filters">
+          <select id="filter-type"><option value="">Alle typer</option></select>
+          <select id="filter-dealer"><option value="">Alle forhandlere</option></select>
+        </div>
+        <div id="recent-list" class="list"></div>
+        <button id="more-btn" class="btn ghost block" hidden>Vis flere</button>
+      </div>
+    </section>
+
+    <!-- ---------- SETUP ---------- -->
+    <section id="view-setup" class="view" hidden>
+      <div class="card">
+        <h2>Typer</h2>
+        <form class="add-row" data-table="part_types">
+          <input type="text" placeholder="Ny type, fx Stempel" required maxlength="80">
+          <button class="btn primary" type="submit">Tilføj</button>
+        </form>
+        <ul class="setup-list" id="list-part_types"></ul>
+      </div>
+
+      <div class="card">
+        <h2>Forhandlere</h2>
+        <form class="add-row" data-table="dealers">
+          <input type="text" placeholder="Ny forhandler" required maxlength="80">
+          <button class="btn primary" type="submit">Tilføj</button>
+        </form>
+        <ul class="setup-list" id="list-dealers"></ul>
+      </div>
+
+      <div class="card">
+        <h2>Konto</h2>
+        <p class="muted">Logget ind som <strong id="user-email"></strong></p>
+        <button id="logout-btn" class="btn ghost">Log ud</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ============ SCANNER ============ -->
+<div id="scanner" class="overlay" hidden>
+  <div class="scanner-box">
+    <div class="scanner-head">
+      <strong>Peg kameraet mod stregkoden</strong>
+      <button id="scanner-close" class="btn ghost">Luk</button>
+    </div>
+    <div id="scanner-view"></div>
+    <p id="scanner-msg" class="muted small center"></p>
+  </div>
+</div>
+
+<!-- ============ DETALJE / REDIGER ============ -->
+<dialog id="detail-dialog">
+  <form method="dialog" id="detail-form" class="form-grid">
+    <h2 class="span-2">Komponent</h2>
+    <div class="span-2 detail-barcode" id="detail-barcode"></div>
+    <p class="span-2 muted" id="detail-date"></p>
+    <label>Type<select id="detail-type"></select></label>
+    <label>Forhandler<select id="detail-dealer"></select></label>
+    <label class="span-2">Note<input id="detail-note" type="text" maxlength="200"></label>
+    <div class="span-2 dialog-actions">
+      <button type="button" id="detail-delete" class="btn danger">Slet</button>
+      <span class="spacer"></span>
+      <button type="button" id="detail-cancel" class="btn ghost">Annullér</button>
+      <button type="submit" id="detail-save" class="btn primary">Gem ændringer</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
