@@ -47,7 +47,6 @@ h2 { font-size: 22px; font-weight: 700; }
   border-bottom: 1px solid var(--line);
 }
 .brand { display: flex; align-items: center; gap: 14px; }
-.brand-title { font-weight: 800; font-size: 18px; color: var(--text); padding-right: 14px; border-right: 2px solid var(--line); }
 .brand-logo { height: 34px; width: auto; display: block; }
 .login-logo { width: 220px; max-width: 70%; height: auto; display: block; margin: 0 auto 18px; }
 .tabs { display: flex; gap: 6px; background: var(--bg); padding: 4px; border-radius: 12px; }
@@ -108,7 +107,8 @@ select {
   #search-form input { flex-basis: 100%; }
   #search-form .btn { flex: 1; }
   .tab { padding: 8px 12px; }
-  .brand-title { display: none; }
+  .brand { gap: 10px; }
+  #topbar-logout { padding: 0 10px; }
   .brand-logo { height: 28px; }
 }
 

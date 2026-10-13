@@ -89,7 +89,12 @@
     }
   });
 
-  $("#logout-btn").addEventListener("click", () => sb.auth.signOut());
+  async function logout() {
+    if (!confirm("Vil du logge ud?")) return;
+    await sb.auth.signOut();
+  }
+  $("#logout-btn").addEventListener("click", logout);
+  $("#topbar-logout").addEventListener("click", logout);
 
   // ---------------- Routing ----------------
   function route() {
