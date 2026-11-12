@@ -155,7 +155,8 @@ Deno.serve(async (req) => {
   async function loadTarget(userId: string) {
     const { data: tp } = await admin.from("profiles")
       .select("role, importer_id, is_admin").eq("user_id", userId).maybeSingle();
-    if (!tp) return null;
+    // App-admin må også håndtere brugere uden profil/importør
+    if (!tp) return isAppAdmin ? { role: null, importer_id: null, is_admin: false } : null;
     if (!isAppAdmin) {
       if (tp.importer_id !== cp!.importer_id || tp.role === "superadmin" || tp.is_admin) return null;
     }
@@ -206,7 +207,7 @@ Deno.serve(async (req) => {
         if (uErr) return json({ error: "failed", detail: uErr.message }, 500);
         await admin.from("profiles").update({ must_change_password: true }).eq("user_id", userId);
         const emailed = await sendMail({
-          to: tu.user.email, password, importer: await importerName(tp.importer_id), lang, reset: true, appUrl,
+          to: tu.user.email, password, importer: tp.importer_id ? await importerName(tp.importer_id) : "", lang, reset: true, appUrl,
         });
         return json({ ok: true, emailed, ...(emailed ? {} : { temp_password: password }) });
       }

@@ -312,3 +312,5 @@ select.role-select { width: auto; min-height: 44px; font-size: 16px; padding-rig
 .pending { color: #7a5b00; font-weight: 600; }
 .code-value { text-align: center; font-size: 28px; letter-spacing: 1px; margin: 12px 0 16px; user-select: all; }
 #code-dialog p { margin: 0; }
+
+.admin-user-actions { margin-top: 8px; }

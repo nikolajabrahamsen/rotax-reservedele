@@ -992,6 +992,10 @@
           </select>
           <label class="check"><input type="checkbox" data-f="admin"${u.is_admin ? " checked" : ""}${me ? " disabled" : ""}> ${t("admin.isAdmin")}</label>
         </div>
+        ${me ? "" : `<div class="row-actions admin-user-actions">
+          <button type="button" class="btn ghost icon-btn" data-a="reset">${t("users.resend")}</button>
+          <button type="button" class="btn danger icon-btn" data-a="delete">${t("users.remove")}</button>
+        </div>`}
       </div>`;
     }).join("") : `<p class="empty">${t("admin.noUsers")}</p>`;
 
@@ -1012,6 +1016,30 @@
   }
 
   $("#admin-only-unassigned").addEventListener("change", renderAdmin);
+
+  // Admin: send ny kode / fjern bruger (alle importører)
+  $("#admin-users").addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-a]");
+    if (!btn) return;
+    const row = btn.closest(".admin-user");
+    const userId = row.dataset.user;
+    const email = (state.admin.users.find((u) => u.user_id === userId) || {}).email || "";
+    if (btn.dataset.a === "reset") {
+      if (!confirm(t("users.confirmResend", { email }))) return;
+      btn.disabled = true;
+      const { data, code } = await usersFn({ action: "reset", user_id: userId });
+      btn.disabled = false;
+      if (code) { toast(usersErr(code), "err"); return; }
+      if (data.emailed) toast(t("users.resent", { email }), "ok"); else showTempCode(email, data.temp_password);
+    } else {
+      if (!confirm(t("users.confirmRemove", { email }))) return;
+      btn.disabled = true;
+      const { code } = await usersFn({ action: "delete", user_id: userId });
+      if (code) { btn.disabled = false; toast(usersErr(code), "err"); return; }
+      toast(t("users.removed"), "ok");
+    }
+    loadAdmin();
+  });
   $("#admin-refresh").addEventListener("click", loadAdmin);
 
   $("#admin-users").addEventListener("change", async (e) => {
