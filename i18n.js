@@ -653,7 +653,7 @@
       "recent.empty": "Noch keine Erfassungen.",
 
       "parts.title": "Teile",
-      "parts.searchPh": "Barcodes durchsuchen",
+      "parts.searchPh": "Barcodes durchsuchen ...",
       "parts.modeGrouped": "Unterteile werden unter ihrem Hauptteil angezeigt.",
       "parts.modeFlat": "Alle passenden Teile – auch Unterteile.",
       "parts.empty": "Keine Teile gefunden.",
