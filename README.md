@@ -74,7 +74,7 @@ on conflict (user_id) do update set importer_id = null, role = 'superadmin';
 - **Windows (Edge/Chrome):** installér-ikonet i adresselinjen
 
 ## Opdatering af appen
-Ved ændringer i filerne: hæv `CACHE`-versionen i `sw.js`, så enhederne henter den nye version.
+Ved ændringer i filerne: hæv `VERSION` i `sw.js` og `?v=` på styles.css, config.js og app.js i `index.html` (samme tal). Så henter alle enheder den nye version med det samme.
 
 ## Filer
 | Fil | Indhold |
