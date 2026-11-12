@@ -2,5 +2,7 @@
 // "anon public" nøglen må gerne ligge offentligt – data er beskyttet af login + RLS.
 window.APP_CONFIG = {
   SUPABASE_URL: "https://pmatyhdefsxkcufqymwg.supabase.co",
-  SUPABASE_ANON_KEY: "sb_publishable_prSskqdjefHuo-R0zp3MZg_OyQNnbmx"
+  SUPABASE_ANON_KEY: "sb_publishable_prSskqdjefHuo-R0zp3MZg_OyQNnbmx",
+  // Navnet i adressen på Edge Functionen til brugeroprettelse (…/functions/v1/<navn>)
+  USERS_FUNCTION: "manage-users"
 };

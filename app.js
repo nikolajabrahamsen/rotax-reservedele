@@ -1084,7 +1084,7 @@
   // Kald Edge Function "manage-users". Returnerer { data } eller { code }.
   async function usersFn(body) {
     try {
-      const { data, error } = await sb.functions.invoke("manage-users", { body: { ...body, lang: I18N.lang() } });
+      const { data, error } = await sb.functions.invoke(cfg.USERS_FUNCTION || "manage-users", { body: { ...body, lang: I18N.lang() } });
       if (!error) return { data };
       let code = null;
       try { code = (await error.context.json()).error || null; } catch {}
@@ -1158,7 +1158,7 @@
     const email = $("#users-email").value.trim();
     if (!email) return;
     const btn = e.submitter; btn.disabled = true; const label = btn.textContent; btn.textContent = t("users.working");
-    const ok = await createUser({ email, role: $("#users-role").value });
+    const ok = await createUser({ email, role: $("#users-role").value, importer_id: state.me.importerId });
     btn.disabled = false; btn.textContent = label;
     if (ok) { $("#users-email").value = ""; $("#users-role").value = "user"; loadUsers(); }
   });

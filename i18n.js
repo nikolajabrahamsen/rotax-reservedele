@@ -113,7 +113,7 @@
       "recent.empty": "Ingen registreringer endnu.",
 
       "parts.title": "Dele",
-      "parts.searchPh": "Søg i stregkoder",
+      "parts.searchPh": "Søg i stregkoder...",
       "parts.modeGrouped": "Underdele vises under deres hoveddel.",
       "parts.modeFlat": "Viser alle dele der matcher – også underdele.",
       "parts.empty": "Ingen dele fundet.",
@@ -383,7 +383,7 @@
       "recent.empty": "No registrations yet.",
 
       "parts.title": "Parts",
-      "parts.searchPh": "Search barcodes",
+      "parts.searchPh": "Search barcodes...",
       "parts.modeGrouped": "Sub-parts are shown under their main part.",
       "parts.modeFlat": "Showing all matching parts – including sub-parts.",
       "parts.empty": "No parts found.",

@@ -169,7 +169,8 @@ Deno.serve(async (req) => {
         const email = String(body.email ?? "").trim().toLowerCase();
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "invalid_email" }, 400);
         const role = body.role === "admin" ? "admin" : "user";
-        const importerId = isAppAdmin ? Number(body.importer_id) : cp!.importer_id;
+        // App-admin kan vælge importør; ellers (eller hvis ingen er valgt) bruges kalderens egen
+        const importerId = (isAppAdmin && Number(body.importer_id)) || cp!.importer_id;
         if (!importerId) return json({ error: "importer_required" }, 400);
         const impName = await importerName(importerId);
         if (!impName) return json({ error: "importer_required" }, 400);
