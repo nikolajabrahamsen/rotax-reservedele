@@ -635,8 +635,8 @@
 
       "setup.types": "Typen",
       "setup.typePh": "Neuer Typ, z. B. Kolben",
-      "setup.canChildren": "Kann Unterteile haben",
-      "setup.typesHelp": "Typen mit „Kann Unterteile haben“ (z. B. Motor) können Zylinder, Plombe usw. zugeordnet bekommen.",
+      "setup.canChildren": "Unterkomponenten zulassen",
+      "setup.typesHelp": "Typen mit der Option „Unterkomponenten zulassen“ (z. B. Motor) können einzelne Bauteile wie Zylinder oder Plomben per Scan zugeordnet werden.",
       "setup.dealers": "Händler",
       "setup.dealerPh": "Neuer Händler",
       "setup.account": "Konto",
