@@ -565,35 +565,138 @@
   let qTimer;
   $("#parts-q").addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(() => loadParts(true), 300); });
 
-  // CSV-eksport (alle dele der matcher filtrene – også underdele)
-  $("#export-btn").addEventListener("click", async () => {
-    const f = partsFilters();
-    const all = [];
-    for (let from = 0; ; from += 1000) {
-      const { data, error } = await applyFilters(sb.from("parts_view").select("*"), f, { grouped: false })
-        .order("created_at", { ascending: false })
-        .order("parent_id", { ascending: true, nullsFirst: true })
-        .order("barcode").range(from, from + 999);
-      if (error) { toast(errMsg(error), "err"); return; }
-      all.push(...data);
-      if (data.length < 1000) break;
+  // ---------------- Excel-eksport ----------------
+  const EXCELJS_URL = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
+  let excelLoading = null;
+  function loadExcelJS() {
+    if (window.ExcelJS) return Promise.resolve();
+    return (excelLoading ||= new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = EXCELJS_URL;
+      s.onload = resolve;
+      s.onerror = () => { excelLoading = null; reject(new Error("Kunne ikke hente Excel-modulet")); };
+      document.head.appendChild(s);
+    }));
+  }
+
+  // Lokal tid som "Excel-tid" (Excel kender ikke tidszoner)
+  const excelDate = (iso) => {
+    const d = new Date(iso);
+    return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()));
+  };
+
+  // Hoveddele efterfulgt af deres underdele
+  function groupForExport(all) {
+    const byId = new Map(all.map((p) => [p.id, p]));
+    const kids = new Map();
+    for (const p of all) if (p.parent_id && byId.has(p.parent_id)) {
+      if (!kids.has(p.parent_id)) kids.set(p.parent_id, []);
+      kids.get(p.parent_id).push(p);
     }
-    const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const head = ["Stregkode", "Type", "Forhandler", "Dato", "Hoveddel", "Hoveddel type", "Antal underdele", "Note"];
-    if (isSuper()) head.unshift("Importør");
-    const lines = [head.map(cell).join(";")];
+    const out = [];
     for (const p of all) {
-      const row = [p.barcode, p.type_name, p.dealer_name, fmtDate(p.created_at),
-        p.parent_barcode, p.parent_type_name, p.child_count || "", p.note];
-      if (isSuper()) row.unshift(p.importer_name);
-      lines.push(row.map(cell).join(";"));
+      if (p.parent_id && byId.has(p.parent_id)) continue;
+      out.push(p);
+      for (const k of (kids.get(p.id) || []).sort((x, y) => x.barcode.localeCompare(y.barcode))) out.push(k);
     }
-    const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `reservedele-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    return out;
+  }
+
+  $("#export-btn").addEventListener("click", async () => {
+    const btn = $("#export-btn");
+    btn.disabled = true;
+    const oldLabel = btn.textContent;
+    btn.textContent = "Henter…";
+    try {
+      const f = partsFilters();
+      const all = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await applyFilters(sb.from("parts_view").select("*"), f, { grouped: false })
+          .order("created_at", { ascending: false }).order("id", { ascending: false })
+          .range(from, from + 999);
+        if (error) throw new Error(errMsg(error));
+        all.push(...data);
+        if (data.length < 1000) break;
+      }
+      if (!all.length) { toast("Ingen dele at eksportere", "err"); return; }
+      await loadExcelJS();
+
+      const rows = groupForExport(all);
+      const wb = new ExcelJS.Workbook();
+      wb.creator = "Rotax Reservedele";
+      wb.created = new Date();
+      const ws = wb.addWorksheet("Dele", {
+        views: [{ state: "frozen", ySplit: 4 }],
+        pageSetup: { orientation: "landscape", paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+      });
+
+      // Titel og filteroplysninger
+      const filterTxt = [
+        ["#filter-importer", f.importer], ["#filter-type", f.type], ["#filter-dealer", f.dealer],
+      ].filter(([, v]) => v).map(([sel]) => $(sel).selectedOptions[0].textContent);
+      if (f.q) filterTxt.push(`stregkode indeholder "${f.q}"`);
+      ws.getCell("A1").value = "Rotax reservedele";
+      ws.getCell("A1").font = { name: "Calibri", bold: true, size: 16, color: { argb: "FFE53138" } };
+      ws.getCell("A2").value = [
+        isSuper() ? "Alle importører" : `Importør: ${state.me.importerName}`,
+        `Eksporteret ${fmtDate(new Date().toISOString())}`,
+        `${rows.length} dele`,
+        filterTxt.length ? `Filter: ${filterTxt.join(", ")}` : "",
+      ].filter(Boolean).join("   ·   ");
+      ws.getCell("A2").font = { name: "Calibri", size: 11, color: { argb: "FF555555" } };
+
+      const cols = [
+        ...(isSuper() ? [{ name: "Importør", w: 16, get: (p) => p.importer_name }] : []),
+        { name: "Stregkode", w: 22, get: (p) => p.barcode },
+        { name: "Type", w: 16, get: (p) => p.type_name },
+        { name: "Forhandler", w: 24, get: (p) => p.dealer_name },
+        { name: "Registreret", w: 18, get: (p) => excelDate(p.created_at), fmt: "dd-mm-yyyy hh:mm" },
+        { name: "Niveau", w: 12, get: (p) => (p.parent_id ? "Underdel" : p.child_count > 0 ? "Hoveddel" : "Enkeltdel") },
+        { name: "Sidder i", w: 22, get: (p) => p.parent_barcode || "" },
+        { name: "Antal underdele", w: 16, get: (p) => (p.parent_id ? null : p.child_count || 0) },
+        { name: "Note", w: 32, get: (p) => p.note || "" },
+      ];
+
+      ws.addTable({
+        name: "Dele",
+        ref: "A4",
+        headerRow: true,
+        style: { theme: "TableStyleMedium1", showRowStripes: true },
+        columns: cols.map((c) => ({ name: c.name, filterButton: true })),
+        rows: rows.map((p) => cols.map((c) => c.get(p))),
+      });
+
+      cols.forEach((c, i) => {
+        const col = ws.getColumn(i + 1);
+        col.width = c.w;
+        if (c.fmt) rows.forEach((_, r) => (ws.getRow(5 + r).getCell(i + 1).numFmt = c.fmt));
+      });
+      // Underdele rykkes lidt ind og skrives i grå, så de ses som del af hoveddelen
+      const codeCol = cols.findIndex((c) => c.name === "Stregkode") + 1;
+      rows.forEach((p, i) => {
+        if (!p.parent_id) return;
+        const r = ws.getRow(5 + i);
+        r.getCell(codeCol).alignment = { indent: 2 };
+        r.eachCell({ includeEmpty: true }, (cell) => (cell.font = { name: "Calibri", size: 11, color: { argb: "FF666666" } }));
+      });
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      const imp = isSuper() ? "alle" : (state.me.importerName || "").toLowerCase().replace(/[^a-z0-9æøå]+/gi, "-");
+      a.download = `reservedele-${imp}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      toast("Excel-fil hentet ✓", "ok");
+    } catch (err) {
+      toast(err.message || "Eksport fejlede", "err");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldLabel;
+    }
   });
 
   // ---------------- Detalje / redigér ----------------

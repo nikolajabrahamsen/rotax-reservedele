@@ -11,7 +11,7 @@ Frontend: ren HTML/CSS/JS hostet på GitHub Pages. Backend: Supabase (Postgres +
   - De 5 seneste registreringer
 - **Dele**
   - Alle importørens dele, med underdele vist under deres hoveddel
-  - Søg i stregkoder, filtrér på type og forhandler, eksportér til CSV
+  - Søg i stregkoder, filtrér på type og forhandler, eksportér til Excel (formateret tabel med filtre)
 - **Detaljer** (klik på en del)
   - Redigér type, forhandler og note
   - Flyt en underdel til en anden motor, løsn den, eller kobl en løs del på en motor
