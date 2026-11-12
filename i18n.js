@@ -407,7 +407,7 @@
       "setup.types": "Types",
       "setup.typePh": "New type, e.g. Piston",
       "setup.canChildren": "Allow sub-parts",
-      "setup.typesHelp": "Types marked \"Allow sub-parts" "enables scanning individual components (such as cylinders or seals) into a main part, like an engine.",
+      "setup.typesHelp": "Types marked \"Allow sub-parts\" enable scanning individual components (such as cylinders or seals) into a main part, like an engine.",
       "setup.dealers": "Dealers",
       "setup.dealerPh": "New dealer",
       "setup.account": "Account",
