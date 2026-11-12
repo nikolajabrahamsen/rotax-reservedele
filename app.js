@@ -12,13 +12,14 @@
   const PAGE = 25;
 
   const state = {
-    me: { userId: null, email: "", importerId: null, importerName: "", role: "user" },
+    me: { userId: null, email: "", importerId: null, importerName: "", role: "user", isAdmin: false },
     types: [],        // {id,name,active,importer_id,can_have_children}
     dealers: [],
     importers: [],    // kun for Rotax (superadmin)
     childParent: null,
     detail: null,
     parts: { offset: 0, items: [] },
+    admin: { users: [], importers: [] },
   };
 
   const canEdit = () => !!state.me.importerId;
@@ -134,8 +135,13 @@
 
   // ---------------- Profil / importør ----------------
   async function loadProfile() {
-    const { data, error } = await sb.from("profiles")
-      .select("role, importer_id, importers(name)").eq("user_id", state.me.userId).maybeSingle();
+    let { data, error } = await sb.from("profiles")
+      .select("role, importer_id, is_admin, importers(name)").eq("user_id", state.me.userId).maybeSingle();
+    if (error && /is_admin/.test(error.message)) {
+      // 003-admin.sql er endnu ikke kørt – fortsæt uden admin
+      ({ data, error } = await sb.from("profiles")
+        .select("role, importer_id, importers(name)").eq("user_id", state.me.userId).maybeSingle());
+    }
     if (error) {
       const missing = /profiles|schema cache|does not exist/i.test(error.message);
       if (missing) showBlocker("", "db.update"); else showBlocker(errMsg(error));
@@ -144,6 +150,8 @@
     state.me.role = data?.role || "user";
     state.me.importerId = data?.importer_id ?? null;
     state.me.importerName = data?.importers?.name || "";
+    state.me.isAdmin = !!data?.is_admin;
+    $('.tab[data-route="admin"]').hidden = !state.me.isAdmin;
 
     if (!state.me.importerId && !isSuper()) {
       showBlocker("", "noimp.text");
@@ -157,7 +165,7 @@
     }
     renderAccount();
     $("#readonly-banner").hidden = canEdit();
-    $$(".add-row").forEach((f) => (f.hidden = !canEdit()));
+    $$(".add-row[data-table]").forEach((f) => (f.hidden = !canEdit()));
     return true;
   }
 
@@ -185,13 +193,16 @@
   function route() {
     if (!$("#no-importer").hidden) return;
     const r = location.hash.replace(/^#\/?/, "") || "home";
-    const name = ["setup", "parts"].includes(r) ? r : "home";
+    const routes = ["setup", "parts"].concat(state.me.isAdmin ? ["admin"] : []);
+    const name = routes.includes(r) ? r : "home";
     currentRoute = name;
     $("#view-home").hidden = name !== "home";
     $("#view-parts").hidden = name !== "parts";
     $("#view-setup").hidden = name !== "setup";
+    $("#view-admin").hidden = name !== "admin";
     $$(".tab").forEach((a) => a.classList.toggle("active", a.dataset.route === name));
     if (name === "parts") loadParts(true);
+    if (name === "admin") loadAdmin();
     window.scrollTo(0, 0);
   }
   window.addEventListener("hashchange", route);
@@ -917,7 +928,7 @@
     if (act !== "toggle") afterChange();
   }
 
-  $$(".add-row").forEach((form) => {
+  $$(".add-row[data-table]").forEach((form) => {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const input = $("input[type=text]", form);
@@ -933,6 +944,119 @@
       toast(t("setup.added", { name }), "ok");
       loadLookups();
     });
+  });
+
+  // ---------------- Admin ----------------
+  async function loadAdmin() {
+    const [u, i] = await Promise.all([sb.rpc("admin_list_users"), sb.rpc("admin_list_importers")]);
+    if (u.error || i.error) { toast(errMsg(u.error || i.error), "err"); return; }
+    state.admin.users = u.data || [];
+    state.admin.importers = i.data || [];
+    renderAdmin();
+  }
+
+  const isUnassigned = (u) => !u.importer_id && u.role !== "superadmin";
+
+  function renderAdmin() {
+    const { users, importers } = state.admin;
+    const missing = users.filter(isUnassigned).length;
+    const badge = $("#admin-unassigned");
+    badge.hidden = !missing;
+    badge.textContent = t("admin.unassigned", { n: missing });
+
+    const only = $("#admin-only-unassigned").checked;
+    const list = only ? users.filter(isUnassigned) : users;
+    const impOpts = (sel) => `<option value="">${esc(t("admin.noImporter"))}</option>` +
+      importers.map((i) => `<option value="${i.id}"${i.id === sel ? " selected" : ""}>${esc(i.name)}${i.country ? ` (${esc(i.country)})` : ""}</option>`).join("");
+
+    $("#admin-users").innerHTML = list.length ? list.map((u) => {
+      const me = u.user_id === state.me.userId;
+      const role = u.role === "superadmin" ? "superadmin" : "user";
+      return `<div class="admin-user${isUnassigned(u) ? " missing" : ""}" data-user="${u.user_id}">
+        <div class="admin-user-head">
+          <strong class="email">${esc(u.email)} ${me ? `<span class="muted small">${t("admin.you")}</span>` : ""}</strong>
+          <span class="muted small">${u.last_sign_in_at ? esc(t("admin.lastLogin", { date: fmtDate(u.last_sign_in_at) })) : t("admin.neverLogin")}</span>
+        </div>
+        <div class="admin-user-ctrl">
+          <select data-f="importer" aria-label="${esc(t("field.importer"))}">${impOpts(u.importer_id)}</select>
+          <select data-f="role">
+            <option value="user"${role === "user" ? " selected" : ""}>${t("admin.roleUser")}</option>
+            <option value="superadmin"${role === "superadmin" ? " selected" : ""}>${t("admin.roleSuper")}</option>
+          </select>
+          <label class="check"><input type="checkbox" data-f="admin"${u.is_admin ? " checked" : ""}${me ? " disabled" : ""}> ${t("admin.isAdmin")}</label>
+        </div>
+      </div>`;
+    }).join("") : `<p class="empty">${t("admin.noUsers")}</p>`;
+
+    $("#admin-importers").innerHTML = importers.length ? importers.map((i) => `
+      <li data-id="${i.id}">
+        <span class="name">${esc(i.name)}${i.country ? ` <span class="muted">(${esc(i.country)})</span>` : ""}
+          <span class="muted small imp-stats">${esc(t("admin.stats", { users: i.users, parts: i.parts }))}</span></span>
+        <span class="li-actions">
+          <button class="btn ghost icon-btn" data-act="rename">${t("btn.rename")}</button>
+          <button class="btn danger icon-btn" data-act="delete">${t("btn.delete")}</button>
+        </span>
+      </li>`).join("") : `<li class="empty">${t("setup.none")}.</li>`;
+  }
+
+  $("#admin-only-unassigned").addEventListener("change", renderAdmin);
+  $("#admin-refresh").addEventListener("click", loadAdmin);
+
+  $("#admin-users").addEventListener("change", async (e) => {
+    const el = e.target.closest("[data-f]");
+    if (!el) return;
+    const row = el.closest(".admin-user");
+    const userId = row.dataset.user;
+    const me = userId === state.me.userId;
+    let res;
+    if (el.dataset.f === "admin") {
+      res = await sb.rpc("admin_set_admin", { p_user: userId, p_is_admin: el.checked });
+    } else {
+      const imp = $('[data-f="importer"]', row).value;
+      res = await sb.rpc("admin_set_user", {
+        p_user: userId, p_importer: imp ? Number(imp) : null, p_role: $('[data-f="role"]', row).value,
+      });
+    }
+    if (res.error) { toast(errMsg(res.error), "err"); loadAdmin(); return; }
+    if (me && el.dataset.f !== "admin") {
+      toast(t("admin.reloadSelf"), "ok");
+      setTimeout(() => location.reload(), 1200);
+      return;
+    }
+    toast(t("admin.saved"), "ok");
+    loadAdmin();
+  });
+
+  $("#admin-importer-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = $("#admin-imp-name").value.trim();
+    const country = $("#admin-imp-country").value.trim().toUpperCase() || null;
+    if (!name) return;
+    const { error } = await sb.from("importers").insert({ name, country });
+    if (error) { toast(error.code === "23505" ? t("setup.exists", { name }) : errMsg(error), "err"); return; }
+    $("#admin-imp-name").value = "";
+    $("#admin-imp-country").value = "";
+    toast(t("setup.added", { name }), "ok");
+    loadAdmin();
+  });
+
+  $("#admin-importers").addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    const id = Number(btn.closest("li").dataset.id);
+    const imp = state.admin.importers.find((x) => x.id === id);
+    let res;
+    if (btn.dataset.act === "rename") {
+      const name = prompt(t("setup.newName"), imp.name);
+      if (!name || !name.trim() || name.trim() === imp.name) return;
+      res = await sb.from("importers").update({ name: name.trim() }).eq("id", id);
+    } else {
+      if (!confirm(t("setup.confirmDelete", { name: imp.name }))) return;
+      res = await sb.from("importers").delete().eq("id", id);
+      if (res.error && res.error.code === "23503") { toast(t("admin.importerInUse", { name: imp.name }), "err"); return; }
+    }
+    if (res.error) { toast(errMsg(res.error), "err"); return; }
+    loadAdmin();
   });
 
   // ---------------- Kamera-scanner ----------------
@@ -1021,6 +1145,7 @@
     if (cleanCode($("#search-input").value)) search($("#search-input").value);
     if (state.childParent) openChildPanel(state.childParent);
     if (dlg.open && state.detail) openDetail(state.detail.id);
+    if (currentRoute === "admin") renderAdmin();
   });
 
   if ("serviceWorker" in navigator) {

@@ -50,29 +50,18 @@ Frontend: ren HTML/CSS/JS hostet på GitHub Pages. Backend: Supabase (Postgres +
 2. Slå *Allow new users to sign up* fra under Authentication
 3. Udfyld `config.js` og upload til GitHub Pages
 
-## Ny importør og nye brugere
-Brugere oprettes i Supabase → **Authentication → Users → Add user** (sæt *Auto Confirm User*).
-En ny bruger kan **ikke** se noget, før den er tilknyttet en importør. Kør i SQL Editor:
+## Admin: importører og brugere
+Admin-brugere ser fanen **Admin** i appen. Her kan de:
+- oprette, omdøbe og slette importører (kun importører uden brugere og dele kan slettes)
+- tilknytte brugere til en importør, eller give dem rollen **Rotax (ser alle)**
+- gøre andre brugere til admin
 
-```sql
--- 1) Opret importøren (én gang)
-insert into public.importers (name, country) values ('Sverige', 'SE');
+Opsætning (én gang): ret e-mailen nederst i `supabase/003-admin.sql` til din egen og kør filen i SQL Editor.
 
--- 2) Tilknyt brugeren til importøren
-insert into public.profiles (user_id, importer_id, role)
-select u.id, i.id, 'user'
-from auth.users u, public.importers i
-where u.email = 'person@firma.se' and i.name = 'Sverige'
-on conflict (user_id) do update set importer_id = excluded.importer_id, role = excluded.role;
-```
+**Ny bruger:** opret den i Supabase → Authentication → Users → Add user (sæt *Auto Confirm User*).
+Brugeren dukker derefter op i Admin-fanen markeret med gult, og du vælger importøren. Indtil da ser brugeren kun en besked om, at den ikke er tilknyttet en importør.
 
-Rotax-bruger, der kan se alle importører:
-
-```sql
-insert into public.profiles (user_id, importer_id, role)
-select id, null, 'superadmin' from auth.users where email = 'navn@rotax.com'
-on conflict (user_id) do update set importer_id = null, role = 'superadmin';
-```
+Admin er uafhængig af importør: en admin ser stadig kun sin egen importørs dele.
 
 ## Installér som app
 - **iOS (Safari):** Del → *Føj til hjemmeskærm*
@@ -93,3 +82,4 @@ Ved ændringer i filerne: hæv `VERSION` i `sw.js` og `?v=` på styles.css, i18n
 | `sw.js`, `manifest.webmanifest`, `icons/` | PWA |
 | `supabase/schema.sql` | Grundtabeller (version 1) |
 | `supabase/002-importoerer-og-underdele.sql` | Importører, underdele, historik og adgangsregler |
+| `supabase/003-admin.sql` | Admin-adgang og admin-funktioner |

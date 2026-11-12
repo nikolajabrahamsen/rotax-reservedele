@@ -13,7 +13,7 @@
   <link rel="icon" href="icons/favicon-64.png">
   <link rel="preload" as="image" href="icons/rotax-logo.png">
   <link rel="apple-touch-icon" href="icons/app-apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=9">
+  <link rel="stylesheet" href="styles.css?v=10">
 </head>
 <body>
 
@@ -40,6 +40,7 @@
       <a href="#/" data-route="home" class="tab" data-i18n="nav.home">Home</a>
       <a href="#/parts" data-route="parts" class="tab" data-i18n="nav.parts">Parts</a>
       <a href="#/setup" data-route="setup" class="tab" data-i18n="nav.setup">Setup</a>
+      <a href="#/admin" data-route="admin" class="tab" data-i18n="nav.admin" hidden>Admin</a>
     </nav>
     <div class="brand">
       <span class="brand-actions">
@@ -189,6 +190,32 @@
         <button id="logout-btn" class="btn ghost" style="margin-top:14px" data-i18n="logout">Sign out</button>
       </div>
     </section>
+
+    <!-- ---------- ADMIN ---------- -->
+    <section id="view-admin" class="view" hidden>
+      <div class="card">
+        <div class="card-head">
+          <h2 data-i18n="admin.usersTitle">Users</h2>
+          <button type="button" id="admin-refresh" class="btn ghost small-btn" data-i18n="admin.refresh">Refresh</button>
+        </div>
+        <p class="muted small" data-i18n="admin.usersHelp"></p>
+        <div class="admin-bar">
+          <span class="badge warn" id="admin-unassigned" hidden></span>
+          <label class="check"><input type="checkbox" id="admin-only-unassigned"> <span data-i18n="admin.onlyUnassigned">Only without importer</span></label>
+        </div>
+        <div id="admin-users" class="admin-users"></div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="admin.importersTitle">Importers</h2>
+        <form class="add-row wrap" id="admin-importer-form">
+          <input type="text" id="admin-imp-name" data-i18n-ph="admin.importerPh" required maxlength="80">
+          <input type="text" id="admin-imp-country" data-i18n-ph="admin.countryPh" maxlength="3" class="country-input">
+          <button class="btn primary" type="submit" data-i18n="btn.add">Add</button>
+        </form>
+        <ul class="setup-list" id="admin-importers"></ul>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -260,10 +287,10 @@
 
 <div id="toast" class="toast" hidden></div>
 
-<script src="i18n.js?v=9"></script>
+<script src="i18n.js?v=10"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="config.js?v=9"></script>
-<script src="app.js?v=9"></script>
+<script src="config.js?v=10"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
