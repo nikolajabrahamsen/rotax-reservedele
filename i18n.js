@@ -260,8 +260,8 @@
       "readonly": "Rotax overview: you can view all importers' parts, but not create or edit.",
 
       "home.scanTitle": "Scan barcode",
-      "home.scanHelp": "Scan or type a barcode. If it exists, the part is shown – otherwise you can create it.",
-      "barcode.placeholder": "Scan or type barcode",
+      "home.scanHelp": "Scan or enter a barcode. If it exists, the part is shown – otherwise you can create it.",
+      "barcode.placeholder": "Scan or enter barcode",
       "scan.aria": "Scan with camera",
       "btn.scan": "Scan",
       "btn.search": "Search",
@@ -406,8 +406,9 @@
 
       "setup.types": "Types",
       "setup.typePh": "New type, e.g. Piston",
-      "setup.canChildren": "Can have sub-parts",
-      "setup.typesHelp": "Types marked \"Can have sub-parts\" (e.g. Engine) can have cylinder, seal etc. scanned into them.",
+      "setup.canChildren": "Allow sub-parts",
+      "setup.typesHelp": "Types marked \"Allow sub-parts
+	  Enables scanning individual components (such as cylinders or seals) into a main part, like an engine.",
       "setup.dealers": "Dealers",
       "setup.dealerPh": "New dealer",
       "setup.account": "Account",
