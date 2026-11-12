@@ -177,13 +177,13 @@ select {
 .setup-list .count { color: var(--muted); font-size: 15px; }
 
 /* ---------- Login ---------- */
-#view-login { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
+#view-login, #view-newpw { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
 .login-card {
   width: 100%; max-width: 400px; background: var(--surface);
   border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow);
   padding: 30px 24px; text-align: center;
 }
-.login-card form { display: flex; flex-direction: column; gap: 14px; text-align: left; margin-top: 18px; }
+.login-card form, #newpw-form { display: flex; flex-direction: column; gap: 14px; text-align: left; margin-top: 18px; }
 
 /* ---------- Scanner ---------- */
 .scanner-dialog { width: min(520px, calc(100% - 24px)); padding: 16px; }
@@ -301,3 +301,14 @@ select.lang-select {
   .admin-user-ctrl { grid-template-columns: 1fr 1fr; }
   .admin-user-ctrl .check { grid-column: 1 / -1; }
 }
+
+/* ---------- Brugere ---------- */
+.add-row.wrap input[type=email] { flex: 1 1 240px; }
+.full-input { flex: 1 1 100% !important; }
+select.role-select { width: auto; min-height: 44px; font-size: 16px; padding-right: 38px; }
+.add-row select { flex: 0 1 auto; }
+.user-list .email { word-break: break-all; }
+.user-list .li-actions { align-items: center; }
+.pending { color: #7a5b00; font-weight: 600; }
+.code-value { text-align: center; font-size: 28px; letter-spacing: 1px; margin: 12px 0 16px; user-select: all; }
+#code-dialog p { margin: 0; }

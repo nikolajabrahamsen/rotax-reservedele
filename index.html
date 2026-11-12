@@ -13,7 +13,7 @@
   <link rel="icon" href="icons/favicon-64.png">
   <link rel="preload" as="image" href="icons/rotax-logo.png">
   <link rel="apple-touch-icon" href="icons/app-apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=10">
+  <link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body>
 
@@ -29,6 +29,23 @@
       <label><span data-i18n="login.password">Password</span><input type="password" id="login-pass" required autocomplete="current-password"></label>
       <button class="btn primary block" type="submit" data-i18n="login.submit">Sign in</button>
       <p id="login-error" class="error" hidden></p>
+    </form>
+  </div>
+</section>
+
+<!-- ============ NY ADGANGSKODE ============ -->
+<section id="view-newpw" class="view" hidden>
+  <div class="login-card">
+    <div class="login-lang"><select class="lang-select"></select></div>
+    <img src="icons/rotax-logo.png" alt="Rotax Racing" class="login-logo">
+    <h1 data-i18n="newpw.title">Choose your own password</h1>
+    <p class="muted" data-i18n="newpw.text"></p>
+    <form id="newpw-form" autocomplete="on">
+      <input type="text" name="username" autocomplete="username" hidden id="newpw-user">
+      <label><span data-i18n="newpw.pw1">New password</span><input type="password" id="newpw-1" required minlength="8" autocomplete="new-password"></label>
+      <label><span data-i18n="newpw.pw2">Repeat password</span><input type="password" id="newpw-2" required minlength="8" autocomplete="new-password"></label>
+      <button class="btn primary block" type="submit" data-i18n="newpw.save">Save password</button>
+      <p id="newpw-error" class="error" hidden></p>
     </form>
   </div>
 </section>
@@ -180,6 +197,20 @@
         <ul class="setup-list" id="list-dealers"></ul>
       </div>
 
+      <div class="card" id="users-card" hidden>
+        <h2 data-i18n="users.title">Users</h2>
+        <p class="muted small" id="users-help"></p>
+        <form class="add-row wrap" id="users-form">
+          <input type="email" id="users-email" data-i18n-ph="users.emailPh" required autocomplete="off">
+          <select id="users-role" class="role-select">
+            <option value="user" data-i18n="users.roleUser">User</option>
+            <option value="admin" data-i18n="users.roleImpAdmin">Importer admin</option>
+          </select>
+          <button class="btn primary" type="submit" data-i18n="users.create">Create and send code</button>
+        </form>
+        <ul class="setup-list user-list" id="users-list"></ul>
+      </div>
+
       <div class="card">
         <h2 data-i18n="setup.account">Account</h2>
         <dl class="kv">
@@ -198,7 +229,15 @@
           <h2 data-i18n="admin.usersTitle">Users</h2>
           <button type="button" id="admin-refresh" class="btn ghost small-btn" data-i18n="admin.refresh">Refresh</button>
         </div>
-        <p class="muted small" data-i18n="admin.usersHelp"></p>
+        <form class="add-row wrap" id="admin-user-form">
+          <input type="email" id="admin-user-email" data-i18n-ph="users.emailPh" required autocomplete="off">
+          <select id="admin-user-importer" required></select>
+          <select id="admin-user-role" class="role-select">
+            <option value="user" data-i18n="users.roleUser">User</option>
+            <option value="admin" data-i18n="users.roleImpAdmin">Importer admin</option>
+          </select>
+          <button class="btn primary" type="submit" data-i18n="users.create">Create and send code</button>
+        </form>
         <div class="admin-bar">
           <span class="badge warn" id="admin-unassigned" hidden></span>
           <label class="check"><input type="checkbox" id="admin-only-unassigned"> <span data-i18n="admin.onlyUnassigned">Only without importer</span></label>
@@ -211,8 +250,10 @@
         <form class="add-row wrap" id="admin-importer-form">
           <input type="text" id="admin-imp-name" data-i18n-ph="admin.importerPh" required maxlength="80">
           <input type="text" id="admin-imp-country" data-i18n-ph="admin.countryPh" maxlength="3" class="country-input">
+          <input type="email" id="admin-imp-email" data-i18n-ph="admin.firstUserPh" autocomplete="off" class="full-input">
           <button class="btn primary" type="submit" data-i18n="btn.add">Add</button>
         </form>
+        <p class="muted small" data-i18n="admin.firstUserHelp"></p>
         <ul class="setup-list" id="admin-importers"></ul>
       </div>
     </section>
@@ -285,12 +326,23 @@
   </form>
 </dialog>
 
+<!-- ============ MIDLERTIDIG KODE (hvis mail ikke kunne sendes) ============ -->
+<dialog id="code-dialog">
+  <p id="code-msg"></p>
+  <div class="detail-barcode code-value" id="code-value"></div>
+  <div class="dialog-actions">
+    <button type="button" id="code-copy" class="btn ghost" data-i18n="users.copy">Copy</button>
+    <span class="spacer"></span>
+    <button type="button" id="code-close" class="btn primary" data-i18n="btn.close">Close</button>
+  </div>
+</dialog>
+
 <div id="toast" class="toast" hidden></div>
 
-<script src="i18n.js?v=10"></script>
+<script src="i18n.js?v=11"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="config.js?v=10"></script>
-<script src="app.js?v=10"></script>
+<script src="config.js?v=11"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>

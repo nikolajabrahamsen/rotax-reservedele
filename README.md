@@ -50,18 +50,31 @@ Frontend: ren HTML/CSS/JS hostet på GitHub Pages. Backend: Supabase (Postgres +
 2. Slå *Allow new users to sign up* fra under Authentication
 3. Udfyld `config.js` og upload til GitHub Pages
 
-## Admin: importører og brugere
-Admin-brugere ser fanen **Admin** i appen. Her kan de:
-- oprette, omdøbe og slette importører (kun importører uden brugere og dele kan slettes)
-- tilknytte brugere til en importør, eller give dem rollen **Rotax (ser alle)**
-- gøre andre brugere til admin
+## Brugere og roller
+| Rolle | Kan |
+|---|---|
+| Bruger | Scanne, oprette og rette dele hos sin importør |
+| Importør-admin | Som bruger + oprette, nulstille og fjerne brugere hos sin egen importør (Setup → Brugere) |
+| Rotax (ser alle) | Se alle importørers dele, ikke rette |
+| Admin (flueben) | Fanen Admin: importører og brugere hos alle importører |
 
-Opsætning (én gang): ret e-mailen nederst i `supabase/003-admin.sql` til din egen og kør filen i SQL Editor.
+**Ny bruger:** oprettes i appen (Setup → Brugere eller Admin). Brugeren får en mail med en midlertidig kode
+og skal vælge sin egen adgangskode ved første login. Kan mailen ikke sendes, vises koden i stedet, så den kan gives videre.
 
-**Ny bruger:** opret den i Supabase → Authentication → Users → Add user (sæt *Auto Confirm User*).
-Brugeren dukker derefter op i Admin-fanen markeret med gult, og du vælger importøren. Indtil da ser brugeren kun en besked om, at den ikke er tilknyttet en importør.
+**Ny importør:** Admin → Importører. Udfyld evt. "Første bruger", så oprettes importørens importør-admin samtidig.
 
-Admin er uafhængig af importør: en admin ser stadig kun sin egen importørs dele.
+## Opsætning af brugeroprettelse (én gang)
+1. Kør `supabase/003-admin.sql` (ret e-mailen nederst) og `supabase/004-brugeradmin.sql` i SQL Editor
+2. **Edge Function:** Supabase → Edge Functions → *Deploy a new function* → *Via Editor*
+   - Navn: `manage-users`
+   - Indsæt hele `supabase/functions/manage-users/index.ts` → *Deploy*
+3. **Resend:** opret en API-nøgle på resend.com (afsenderdomænet skal være verificeret i Resend)
+4. **Secrets:** Supabase → Edge Functions → *Secrets* → tilføj
+   - `RESEND_API_KEY` = nøglen fra Resend
+   - `MAIL_FROM` = fx `Rotax Parts <noreply@nha-automation.dk>`
+   - `APP_URL` = appens adresse (link i mailen)
+
+Uden `RESEND_API_KEY` virker alt stadig – koden vises bare på skærmen i stedet for at blive mailet.
 
 ## Installér som app
 - **iOS (Safari):** Del → *Føj til hjemmeskærm*
@@ -83,3 +96,5 @@ Ved ændringer i filerne: hæv `VERSION` i `sw.js` og `?v=` på styles.css, i18n
 | `supabase/schema.sql` | Grundtabeller (version 1) |
 | `supabase/002-importoerer-og-underdele.sql` | Importører, underdele, historik og adgangsregler |
 | `supabase/003-admin.sql` | Admin-adgang og admin-funktioner |
+| `supabase/004-brugeradmin.sql` | Importør-admin og midlertidige koder |
+| `supabase/functions/manage-users/index.ts` | Edge Function der opretter/nulstiller/fjerner brugere og sender mail |

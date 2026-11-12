@@ -12,7 +12,7 @@
   const PAGE = 25;
 
   const state = {
-    me: { userId: null, email: "", importerId: null, importerName: "", role: "user", isAdmin: false },
+    me: { userId: null, email: "", importerId: null, importerName: "", role: "user", isAdmin: false, mustChange: false },
     types: [],        // {id,name,active,importer_id,can_have_children}
     dealers: [],
     importers: [],    // kun for Rotax (superadmin)
@@ -100,6 +100,7 @@
     const loggedIn = !!session;
     $("#view-login").hidden = loggedIn;
     $("#app").hidden = !loggedIn;
+    if (!loggedIn) $("#view-newpw").hidden = true;
     if (loggedIn) {
       state.me.userId = session.user.id;
       state.me.email = session.user.email || "";
@@ -135,12 +136,15 @@
 
   // ---------------- Profil / importør ----------------
   async function loadProfile() {
-    let { data, error } = await sb.from("profiles")
-      .select("role, importer_id, is_admin, importers(name)").eq("user_id", state.me.userId).maybeSingle();
-    if (error && /is_admin/.test(error.message)) {
-      // 003-admin.sql er endnu ikke kørt – fortsæt uden admin
-      ({ data, error } = await sb.from("profiles")
-        .select("role, importer_id, importers(name)").eq("user_id", state.me.userId).maybeSingle());
+    // Prøv med de nyeste kolonner først; fald tilbage hvis en migrering endnu ikke er kørt
+    let data, error;
+    for (const cols of [
+      "role, importer_id, is_admin, must_change_password, importers(name)",
+      "role, importer_id, is_admin, importers(name)",
+      "role, importer_id, importers(name)",
+    ]) {
+      ({ data, error } = await sb.from("profiles").select(cols).eq("user_id", state.me.userId).maybeSingle());
+      if (!error || !/is_admin|must_change_password/.test(error.message)) break;
     }
     if (error) {
       const missing = /profiles|schema cache|does not exist/i.test(error.message);
@@ -151,6 +155,7 @@
     state.me.importerId = data?.importer_id ?? null;
     state.me.importerName = data?.importers?.name || "";
     state.me.isAdmin = !!data?.is_admin;
+    state.me.mustChange = !!data?.must_change_password;
     $('.tab[data-route="admin"]').hidden = !state.me.isAdmin;
 
     if (!state.me.importerId && !isSuper()) {
@@ -203,6 +208,7 @@
     $$(".tab").forEach((a) => a.classList.toggle("active", a.dataset.route === name));
     if (name === "parts") loadParts(true);
     if (name === "admin") loadAdmin();
+    if (name === "setup" && canManageUsers()) loadUsers();
     window.scrollTo(0, 0);
   }
   window.addEventListener("hashchange", route);
@@ -971,7 +977,7 @@
 
     $("#admin-users").innerHTML = list.length ? list.map((u) => {
       const me = u.user_id === state.me.userId;
-      const role = u.role === "superadmin" ? "superadmin" : "user";
+      const role = ["superadmin", "admin"].includes(u.role) ? u.role : "user";
       return `<div class="admin-user${isUnassigned(u) ? " missing" : ""}" data-user="${u.user_id}">
         <div class="admin-user-head">
           <strong class="email">${esc(u.email)} ${me ? `<span class="muted small">${t("admin.you")}</span>` : ""}</strong>
@@ -981,12 +987,18 @@
           <select data-f="importer" aria-label="${esc(t("field.importer"))}">${impOpts(u.importer_id)}</select>
           <select data-f="role">
             <option value="user"${role === "user" ? " selected" : ""}>${t("admin.roleUser")}</option>
+            <option value="admin"${role === "admin" ? " selected" : ""}>${t("users.roleImpAdmin")}</option>
             <option value="superadmin"${role === "superadmin" ? " selected" : ""}>${t("admin.roleSuper")}</option>
           </select>
           <label class="check"><input type="checkbox" data-f="admin"${u.is_admin ? " checked" : ""}${me ? " disabled" : ""}> ${t("admin.isAdmin")}</label>
         </div>
       </div>`;
     }).join("") : `<p class="empty">${t("admin.noUsers")}</p>`;
+
+    const aui = $("#admin-user-importer"), auiV = aui.value;
+    aui.innerHTML = `<option value="">${esc(t("admin.noImporter"))}</option>` +
+      importers.map((i) => `<option value="${i.id}">${esc(i.name)}</option>`).join("");
+    aui.value = auiV;
 
     $("#admin-importers").innerHTML = importers.length ? importers.map((i) => `
       <li data-id="${i.id}">
@@ -1031,13 +1043,19 @@
     e.preventDefault();
     const name = $("#admin-imp-name").value.trim();
     const country = $("#admin-imp-country").value.trim().toUpperCase() || null;
+    const firstEmail = $("#admin-imp-email").value.trim();
     if (!name) return;
-    const { error } = await sb.from("importers").insert({ name, country });
-    if (error) { toast(error.code === "23505" ? t("setup.exists", { name }) : errMsg(error), "err"); return; }
-    $("#admin-imp-name").value = "";
-    $("#admin-imp-country").value = "";
-    toast(t("setup.added", { name }), "ok");
-    loadAdmin();
+    const btn = e.submitter; if (btn) btn.disabled = true;
+    try {
+      const { data, error } = await sb.from("importers").insert({ name, country }).select("id").single();
+      if (error) { toast(error.code === "23505" ? t("setup.exists", { name }) : errMsg(error), "err"); return; }
+      $("#admin-imp-name").value = "";
+      $("#admin-imp-country").value = "";
+      $("#admin-imp-email").value = "";
+      toast(t("setup.added", { name }), "ok");
+      if (firstEmail) await createUser({ email: firstEmail, role: "admin", importer_id: data.id });
+      loadAdmin();
+    } finally { if (btn) btn.disabled = false; }
   });
 
   $("#admin-importers").addEventListener("click", async (e) => {
@@ -1058,6 +1076,170 @@
     if (res.error) { toast(errMsg(res.error), "err"); return; }
     loadAdmin();
   });
+
+  // ---------------- Brugere (importør-admin) ----------------
+  const canManageUsers = () =>
+    !!state.me.importerId && (state.me.role === "admin" || state.me.isAdmin);
+
+  // Kald Edge Function "manage-users". Returnerer { data } eller { code }.
+  async function usersFn(body) {
+    try {
+      const { data, error } = await sb.functions.invoke("manage-users", { body: { ...body, lang: I18N.lang() } });
+      if (!error) return { data };
+      let code = null;
+      try { code = (await error.context.json()).error || null; } catch {}
+      // Intet svar fra vores egen funktion → den findes ikke (endnu) i Supabase
+      if (!code) code = error.name === "FunctionsFetchError" || error.context?.status === 404 ? "not_deployed" : "failed";
+      return { code };
+    } catch {
+      return { code: "not_deployed" };
+    }
+  }
+  const usersErr = (code) => t("users.err." + code) !== "users.err." + code ? t("users.err." + code) : t("users.err.failed");
+
+  function showTempCode(email, code) {
+    const d = $("#code-dialog");
+    $("#code-msg").textContent = t("users.mailFailed", { email });
+    $("#code-value").textContent = code;
+    d.showModal();
+  }
+  $("#code-close").onclick = () => $("#code-dialog").close();
+  $("#code-copy").onclick = async () => {
+    try { await navigator.clipboard.writeText($("#code-value").textContent); toast(t("users.copied"), "ok"); } catch {}
+  };
+
+  async function createUser({ email, role, importer_id }) {
+    const { data, code } = await usersFn({ action: "create", email, role, importer_id });
+    if (code) { toast(usersErr(code), "err"); return false; }
+    if (data.emailed) toast(t("users.created", { email }), "ok");
+    else showTempCode(email, data.temp_password);
+    return true;
+  }
+
+  let usersList = [];
+  async function loadUsers() {
+    if (!canManageUsers()) return;
+    $("#users-card").hidden = false;
+    const { data, error } = await sb.rpc("importer_list_users");
+    if (error) {
+      // 004 ikke kørt endnu → skjul sektionen
+      if (/importer_list_users|schema cache|does not exist/i.test(error.message)) $("#users-card").hidden = true;
+      else toast(errMsg(error), "err");
+      return;
+    }
+    usersList = data || [];
+    renderUsers();
+  }
+
+  function renderUsers() {
+    $("#users-help").textContent = t("users.help", { importer: state.me.importerName });
+    $("#users-list").innerHTML = usersList.map((u) => {
+      const me = u.user_id === state.me.userId;
+      const locked = me || u.is_admin;            // egen bruger og app-admins røres ikke her
+      const status = u.must_change_password ? `<span class="pending">${t("users.pending")}</span>`
+        : u.last_sign_in_at ? esc(t("admin.lastLogin", { date: fmtDate(u.last_sign_in_at) })) : t("admin.neverLogin");
+      return `<li data-user="${u.user_id}" data-email="${esc(u.email)}">
+        <span class="name"><span class="email">${esc(u.email)}</span> ${me ? `<span class="muted small">${t("admin.you")}</span>` : ""}
+          <span class="muted small imp-stats">${status}</span></span>
+        <span class="li-actions">
+          <select class="role-select" data-act="role"${locked ? " disabled" : ""}>
+            <option value="user"${u.role !== "admin" ? " selected" : ""}>${t("users.roleUser")}</option>
+            <option value="admin"${u.role === "admin" ? " selected" : ""}>${t("users.roleImpAdmin")}</option>
+          </select>
+          ${locked ? "" : `<button class="btn ghost icon-btn" data-act="reset">${t("users.resend")}</button>
+          <button class="btn danger icon-btn" data-act="delete">${t("users.remove")}</button>`}
+        </span>
+      </li>`;
+    }).join("") || `<li class="empty">${t("admin.noUsers")}</li>`;
+  }
+
+  $("#users-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = $("#users-email").value.trim();
+    if (!email) return;
+    const btn = e.submitter; btn.disabled = true; const label = btn.textContent; btn.textContent = t("users.working");
+    const ok = await createUser({ email, role: $("#users-role").value });
+    btn.disabled = false; btn.textContent = label;
+    if (ok) { $("#users-email").value = ""; $("#users-role").value = "user"; loadUsers(); }
+  });
+
+  $("#users-list").addEventListener("change", async (e) => {
+    const sel = e.target.closest('select[data-act="role"]');
+    if (!sel) return;
+    const li = sel.closest("li");
+    const { error } = await sb.rpc("importer_set_role", { p_user: li.dataset.user, p_role: sel.value });
+    if (error) toast(errMsg(error), "err"); else toast(t("admin.saved"), "ok");
+    loadUsers();
+  });
+
+  $("#users-list").addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    const li = btn.closest("li");
+    const email = li.dataset.email, userId = li.dataset.user;
+    if (btn.dataset.act === "reset") {
+      if (!confirm(t("users.confirmResend", { email }))) return;
+      btn.disabled = true;
+      const { data, code } = await usersFn({ action: "reset", user_id: userId });
+      btn.disabled = false;
+      if (code) { toast(usersErr(code), "err"); return; }
+      if (data.emailed) toast(t("users.resent", { email }), "ok"); else showTempCode(email, data.temp_password);
+    } else if (btn.dataset.act === "delete") {
+      if (!confirm(t("users.confirmRemove", { email }))) return;
+      btn.disabled = true;
+      const { code } = await usersFn({ action: "delete", user_id: userId });
+      if (code) { btn.disabled = false; toast(usersErr(code), "err"); return; }
+      toast(t("users.removed"), "ok");
+    }
+    loadUsers();
+  });
+
+  // Admin: opret bruger hos en vilkårlig importør
+  $("#admin-user-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = $("#admin-user-email").value.trim();
+    const importer_id = Number($("#admin-user-importer").value);
+    if (!importer_id) { toast(usersErr("importer_required"), "err"); return; }
+    const btn = e.submitter; btn.disabled = true;
+    const ok = await createUser({ email, role: $("#admin-user-role").value, importer_id });
+    btn.disabled = false;
+    if (ok) { $("#admin-user-email").value = ""; loadAdmin(); }
+  });
+
+  // ---------------- Ny adgangskode (efter midlertidig kode) ----------------
+  function askNewPassword() {
+    return new Promise((resolve) => {
+      $("#app").hidden = true;
+      $("#view-newpw").hidden = false;
+      $("#newpw-user").value = state.me.email;
+      $("#newpw-1").focus();
+      const form = $("#newpw-form");
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        const err = $("#newpw-error");
+        const p1 = $("#newpw-1").value, p2 = $("#newpw-2").value;
+        err.hidden = true;
+        if (p1.length < 8) { err.textContent = t("newpw.short"); err.hidden = false; return; }
+        if (p1 !== p2) { err.textContent = t("newpw.mismatch"); err.hidden = false; return; }
+        const btn = e.submitter; btn.disabled = true;
+        const { error } = await sb.auth.updateUser({ password: p1 });
+        if (error) {
+          btn.disabled = false;
+          err.textContent = /different/i.test(error.message) ? t("newpw.same") : errMsg(error);
+          err.hidden = false;
+          return;
+        }
+        await sb.rpc("clear_must_change_password");
+        btn.disabled = false;
+        state.me.mustChange = false;
+        $("#newpw-1").value = $("#newpw-2").value = "";
+        $("#view-newpw").hidden = true;
+        $("#app").hidden = false;
+        toast(t("newpw.saved"), "ok");
+        resolve();
+      };
+    });
+  }
 
   // ---------------- Kamera-scanner ----------------
   const scanDlg = $("#scanner");
@@ -1127,9 +1309,11 @@
   async function boot() {
     const ok = await loadProfile();
     if (!ok) return;
+    if (state.me.mustChange) await askNewPassword();
     route();
     await loadLookups();
     loadRecent();
+    if (canManageUsers()) loadUsers();
     ready = true;
   }
 
@@ -1146,6 +1330,7 @@
     if (state.childParent) openChildPanel(state.childParent);
     if (dlg.open && state.detail) openDetail(state.detail.id);
     if (currentRoute === "admin") renderAdmin();
+    if (canManageUsers()) renderUsers();
   });
 
   if ("serviceWorker" in navigator) {
