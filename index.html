@@ -37,12 +37,19 @@
   <header class="topbar">
     <nav class="tabs">
       <a href="#/" data-route="home" class="tab">Forside</a>
+      <a href="#/parts" data-route="parts" class="tab">Dele</a>
       <a href="#/setup" data-route="setup" class="tab">Setup</a>
     </nav>
     <div class="brand"><button id="topbar-logout" class="btn ghost small-btn" type="button">Log ud</button><img src="icons/rotax-logo.png" alt="Rotax Racing" class="brand-logo"></div>
   </header>
 
   <main>
+    <div id="no-importer" class="card notice" hidden>
+      <h2>Ingen importør</h2>
+      <p>Din bruger er ikke tilknyttet en importør endnu. Kontakt administratoren.</p>
+    </div>
+    <div id="readonly-banner" class="banner" hidden>Rotax-oversigt: du kan se alle importørers dele, men ikke oprette eller rette.</div>
+
     <!-- ---------- FORSIDE ---------- -->
     <section id="view-home" class="view">
 
@@ -52,15 +59,43 @@
           <input id="search-input" type="text" inputmode="text" placeholder="Scan eller skriv stregkode"
                  autocomplete="off" autocapitalize="off" spellcheck="false">
           <button type="button" class="btn scan" data-scan-target="search-input" aria-label="Scan med kamera">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>
-            <span>Scan</span>
-          </button>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>
+                <span>Scan</span>
+              </button>
           <button type="submit" class="btn primary">Søg</button>
         </form>
         <div id="search-result"></div>
       </div>
 
-      <div class="card">
+      <!-- Underdele-tilstand: vises efter en motor er gemt -->
+      <div class="card child-panel" id="child-panel" hidden>
+        <div class="card-head">
+          <h2>Scan underdele</h2>
+          <button type="button" id="child-done" class="btn primary small-btn">Færdig</button>
+        </div>
+        <div class="parent-box" id="child-parent"></div>
+        <form id="child-form" class="form-grid">
+          <label class="span-2">Underdelens stregkode
+            <div class="scan-row">
+              <input id="child-barcode" type="text" required placeholder="Scan eller skriv stregkode"
+                     autocomplete="off" autocapitalize="off" spellcheck="false">
+              <button type="button" class="btn scan" data-scan-target="child-barcode" aria-label="Scan med kamera">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>
+                <span>Scan</span>
+              </button>
+            </div>
+          </label>
+          <label class="span-2">Type
+            <select id="child-type" required></select>
+          </label>
+          <p class="muted small span-2">Forhandler og dato arves fra hoveddelen.</p>
+          <button type="submit" class="btn primary block span-2">Tilføj underdel</button>
+        </form>
+        <h3 class="sub-head">Underdele på denne del</h3>
+        <div id="child-list" class="list"></div>
+      </div>
+
+      <div class="card" id="create-card">
         <h2>Opret ny komponent</h2>
         <form id="create-form" class="form-grid">
           <label class="span-2">Stregkode
@@ -82,7 +117,7 @@
           <label class="span-2"><span>Note <span class="muted small">(valgfri)</span></span>
             <input id="create-note" type="text" maxlength="200">
           </label>
-          <p class="muted small span-2">Dato og tid gemmes automatisk.</p>
+          <p class="muted small span-2" id="create-hint">Dato og tid gemmes automatisk.</p>
           <button type="submit" class="btn primary block span-2">Gem komponent</button>
         </form>
       </div>
@@ -90,13 +125,28 @@
       <div class="card">
         <div class="card-head">
           <h2>Seneste registreringer</h2>
+          <a href="#/parts" class="btn ghost small-btn">Se alle dele</a>
+        </div>
+        <div id="recent-list" class="list"></div>
+      </div>
+    </section>
+
+    <!-- ---------- DELE ---------- -->
+    <section id="view-parts" class="view" hidden>
+      <div class="card">
+        <div class="card-head">
+          <h2>Dele <span class="count" id="parts-count"></span></h2>
           <button id="export-btn" class="btn ghost small-btn">Eksportér CSV</button>
         </div>
         <div class="filters">
+          <input id="parts-q" type="search" placeholder="Søg i stregkoder" class="span-all"
+                 autocomplete="off" autocapitalize="off" spellcheck="false">
+          <select id="filter-importer" hidden><option value="">Alle importører</option></select>
           <select id="filter-type"><option value="">Alle typer</option></select>
           <select id="filter-dealer"><option value="">Alle forhandlere</option></select>
         </div>
-        <div id="recent-list" class="list"></div>
+        <p class="muted small" id="parts-mode"></p>
+        <div id="parts-list" class="list"></div>
         <button id="more-btn" class="btn ghost block" hidden>Vis flere</button>
       </div>
     </section>
@@ -105,10 +155,12 @@
     <section id="view-setup" class="view" hidden>
       <div class="card">
         <h2>Typer</h2>
-        <form class="add-row" data-table="part_types">
+        <form class="add-row wrap" data-table="part_types">
           <input type="text" placeholder="Ny type, fx Stempel" required maxlength="80">
+          <label class="check"><input type="checkbox" name="children"> Kan have underdele</label>
           <button class="btn primary" type="submit">Tilføj</button>
         </form>
+        <p class="muted small">Typer med "Kan have underdele" (fx Motor) kan få cylinder, plombe m.m. scannet ind under sig.</p>
         <ul class="setup-list" id="list-part_types"></ul>
       </div>
 
@@ -123,35 +175,74 @@
 
       <div class="card">
         <h2>Konto</h2>
-        <p class="muted">Logget ind som <strong id="user-email"></strong></p>
-        <button id="logout-btn" class="btn ghost">Log ud</button>
+        <dl class="kv">
+          <dt>Bruger</dt><dd id="user-email"></dd>
+          <dt>Importør</dt><dd id="user-importer"></dd>
+        </dl>
+        <button id="logout-btn" class="btn ghost" style="margin-top:14px">Log ud</button>
       </div>
     </section>
   </main>
 </div>
 
 <!-- ============ SCANNER ============ -->
-<div id="scanner" class="overlay" hidden>
-  <div class="scanner-box">
-    <div class="scanner-head">
-      <strong>Peg kameraet mod stregkoden</strong>
-      <button id="scanner-close" class="btn ghost">Luk</button>
-    </div>
-    <div id="scanner-view"></div>
-    <p id="scanner-msg" class="muted small center"></p>
+<dialog id="scanner" class="scanner-dialog">
+  <div class="scanner-head">
+    <strong>Peg kameraet mod stregkoden</strong>
+    <button id="scanner-close" type="button" class="btn ghost">Luk</button>
   </div>
-</div>
+  <div id="scanner-view"></div>
+  <p id="scanner-msg" class="muted small center"></p>
+</dialog>
 
 <!-- ============ DETALJE / REDIGER ============ -->
 <dialog id="detail-dialog">
   <form method="dialog" id="detail-form" class="form-grid">
-    <h2 class="span-2">Komponent</h2>
+    <div class="span-2 dialog-title">
+      <h2 id="detail-title">Komponent</h2>
+      <button type="button" id="detail-x" class="btn ghost small-btn" aria-label="Luk">Luk</button>
+    </div>
     <div class="span-2 detail-barcode" id="detail-barcode"></div>
     <p class="span-2 muted" id="detail-date"></p>
+
+    <div class="span-2 parent-box" id="detail-parent" hidden></div>
+
+    <div class="span-2 move-box" id="move-box" hidden>
+      <label>Scan hoveddelens stregkode (fx motoren)
+        <div class="scan-row">
+          <input id="move-barcode" type="text" placeholder="Stregkode på motor"
+                 autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button type="button" class="btn scan" data-scan-target="move-barcode" aria-label="Scan med kamera">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>
+                <span>Scan</span>
+              </button>
+        </div>
+      </label>
+      <div class="row-actions">
+        <button type="button" id="move-cancel" class="btn ghost">Annullér</button>
+        <button type="button" id="move-go" class="btn primary">Kobl på</button>
+      </div>
+    </div>
+
     <label>Type<select id="detail-type"></select></label>
     <label>Forhandler<select id="detail-dealer"></select></label>
+    <p class="span-2 muted small" id="detail-dealer-note" hidden>Forhandler arves fra hoveddelen.</p>
     <label class="span-2">Note<input id="detail-note" type="text" maxlength="200"></label>
-    <div class="span-2 dialog-actions">
+
+    <div class="span-2" id="detail-children-wrap" hidden>
+      <div class="card-head">
+        <h3 class="sub-head">Underdele <span class="count" id="detail-child-count"></span></h3>
+        <button type="button" id="detail-add-children" class="btn ghost small-btn">Scan underdele</button>
+      </div>
+      <div id="detail-children" class="list"></div>
+    </div>
+
+    <div class="span-2" id="detail-history-wrap" hidden>
+      <h3 class="sub-head">Historik</h3>
+      <ul id="detail-history" class="history"></ul>
+    </div>
+
+    <div class="span-2 dialog-actions" id="detail-actions">
       <button type="button" id="detail-delete" class="btn danger">Slet</button>
       <span class="spacer"></span>
       <button type="button" id="detail-cancel" class="btn ghost">Annullér</button>
