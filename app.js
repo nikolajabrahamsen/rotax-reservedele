@@ -33,7 +33,8 @@
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-  const fmtDate = (iso) => new Date(iso).toLocaleString("da-DK", {
+  const t = (k, v) => I18N.t(k, v);
+  const fmtDate = (iso) => new Date(iso).toLocaleString(I18N.locale(), {
     day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
   });
 
@@ -54,13 +55,13 @@
   }
 
   function errMsg(error) {
-    if (!error) return "Ukendt fejl";
-    if (error.code === "P0001") return error.message;          // regler fra databasen
-    if (error.code === "23505") return "Findes allerede";
-    if (error.code === "23503") return "Er i brug og kan ikke slettes";
-    if (error.code === "42501") return "Ingen adgang";
-    if (/Failed to fetch|NetworkError/i.test(error.message)) return "Ingen forbindelse til serveren";
-    return error.message || "Ukendt fejl";
+    if (!error) return t("err.unknown");
+    if (error.code === "P0001") return I18N.dbError(error.message);   // regler fra databasen
+    if (error.code === "23505") return t("err.exists");
+    if (error.code === "23503") return t("err.inUse");
+    if (error.code === "42501") return t("err.noAccess");
+    if (/Failed to fetch|NetworkError/i.test(error.message)) return t("err.network");
+    return error.message || t("err.unknown");
   }
 
   const fetchPart = async (id) => {
@@ -84,7 +85,7 @@
   async function initAuth() {
     if (!cfg.SUPABASE_URL || cfg.SUPABASE_URL.includes("DIT-PROJEKT")) {
       $("#view-login").hidden = false;
-      $("#login-error").textContent = "Supabase er ikke sat op endnu – udfyld config.js.";
+      $("#login-error").textContent = t("login.notConfigured");
       $("#login-error").hidden = false;
       return;
     }
@@ -119,13 +120,13 @@
     btn.disabled = false;
     if (error) {
       $("#login-error").textContent = error.message === "Invalid login credentials"
-        ? "Forkert e-mail eller adgangskode" : errMsg(error);
+        ? t("login.wrong") : errMsg(error);
       $("#login-error").hidden = false;
     }
   });
 
   async function logout() {
-    if (!confirm("Vil du logge ud?")) return;
+    if (!confirm(t("confirm.logout"))) return;
     await sb.auth.signOut();
   }
   $("#logout-btn").addEventListener("click", logout);
@@ -137,9 +138,7 @@
       .select("role, importer_id, importers(name)").eq("user_id", state.me.userId).maybeSingle();
     if (error) {
       const missing = /profiles|schema cache|does not exist/i.test(error.message);
-      showBlocker(missing
-        ? "Databasen skal opdateres: kør filen supabase/002-importoerer-og-underdele.sql i Supabase."
-        : errMsg(error));
+      if (missing) showBlocker("", "db.update"); else showBlocker(errMsg(error));
       return false;
     }
     state.me.role = data?.role || "user";
@@ -147,26 +146,36 @@
     state.me.importerName = data?.importers?.name || "";
 
     if (!state.me.importerId && !isSuper()) {
-      showBlocker("Din bruger er ikke tilknyttet en importør endnu. Kontakt administratoren.");
+      showBlocker("", "noimp.text");
       return false;
     }
     if (isSuper()) {
       const { data: imps } = await sb.from("importers").select("id,name").order("name");
       state.importers = imps || [];
-      const sel = $("#filter-importer");
-      sel.innerHTML = `<option value="">Alle importører</option>` +
-        state.importers.map((i) => `<option value="${i.id}">${esc(i.name)}</option>`).join("");
-      sel.hidden = false;
+      renderImporterFilter();
+      $("#filter-importer").hidden = false;
     }
-    $("#user-importer").textContent = (state.me.importerName || "–") + (isSuper() ? " (Rotax – alle importører)" : "");
+    renderAccount();
     $("#readonly-banner").hidden = canEdit();
     $$(".add-row").forEach((f) => (f.hidden = !canEdit()));
     return true;
   }
 
-  function showBlocker(msg) {
+  function renderImporterFilter() {
+    const sel = $("#filter-importer"), v = sel.value;
+    sel.innerHTML = `<option value="">${esc(t("filter.allImporters"))}</option>` +
+      state.importers.map((i) => `<option value="${i.id}">${esc(i.name)}</option>`).join("");
+    sel.value = v;
+  }
+  function renderAccount() {
+    $("#user-importer").textContent = (state.me.importerName || "–") + (isSuper() ? t("setup.importerSuper") : "");
+  }
+
+  function showBlocker(msg, key) {
     $("#no-importer").hidden = false;
-    $("#no-importer p").textContent = msg;
+    const p = $("#no-importer p");
+    if (key) { p.dataset.i18n = key; p.textContent = t(key); }
+    else { delete p.dataset.i18n; p.textContent = msg; }
     $$(".view", $("main")).forEach((v) => (v.hidden = true));
     $(".tabs").hidden = true;
   }
@@ -202,7 +211,7 @@
 
   function label(it) {
     const imp = isSuper() && it.importer_id !== state.me.importerId ? ` – ${importerName(it.importer_id)}` : "";
-    return esc(it.name) + imp + (it.active ? "" : " (inaktiv)");
+    return esc(it.name) + imp + (it.active ? "" : " " + t("inactive"));
   }
 
   function optionsHtml(items, { placeholder, includeId, allInactive } = {}) {
@@ -216,11 +225,11 @@
 
   function renderDropdowns() {
     const sets = [
-      ["#create-type", ownTypes(), { placeholder: "Vælg type…" }],
-      ["#create-dealer", ownDealers(), { placeholder: "Vælg forhandler…" }],
-      ["#child-type", ownTypes().filter((t) => !t.can_have_children), { placeholder: "Vælg type…" }],
-      ["#filter-type", state.types, { placeholder: "Alle typer", allInactive: true }],
-      ["#filter-dealer", state.dealers, { placeholder: "Alle forhandlere", allInactive: true }],
+      ["#create-type", ownTypes(), { placeholder: t("select.type") }],
+      ["#create-dealer", ownDealers(), { placeholder: t("select.dealer") }],
+      ["#child-type", ownTypes().filter((x) => !x.can_have_children), { placeholder: t("select.type") }],
+      ["#filter-type", state.types, { placeholder: t("filter.allTypes"), allInactive: true }],
+      ["#filter-dealer", state.dealers, { placeholder: t("filter.allDealers"), allInactive: true }],
     ];
     for (const [sel, items, opts] of sets) {
       const el = $(sel), v = el.value;
@@ -231,10 +240,8 @@
   }
 
   function updateCreateHint() {
-    const t = typeById(Number($("#create-type").value));
-    $("#create-hint").textContent = t && t.can_have_children
-      ? "Efter du har gemt, kan du scanne underdele (fx cylinder og plombe) ind under denne del."
-      : "Dato og tid gemmes automatisk.";
+    const ty = typeById(Number($("#create-type").value));
+    $("#create-hint").textContent = ty && ty.can_have_children ? t("create.hintParent") : t("create.hint");
   }
   $("#create-type").addEventListener("change", updateCreateHint);
 
@@ -242,8 +249,8 @@
   function rowHtml(p, { child = false } = {}) {
     const bits = [`<span class="pill">${esc(p.type_name)}</span>${esc(p.dealer_name)}`];
     if (isSuper()) bits.push(`<span class="imp">${esc(p.importer_name)}</span>`);
-    if (p.parent_id && !child) bits.push(`<span class="link-ish">↳ i ${esc(p.parent_type_name)} ${esc(p.parent_barcode)}</span>`);
-    if (p.child_count > 0) bits.push(`<span class="kids">${p.child_count} underdel${p.child_count === 1 ? "" : "e"}</span>`);
+    if (p.parent_id && !child) bits.push(`<span class="link-ish">${esc(t("row.inParent", { type: p.parent_type_name, code: p.parent_barcode }))}</span>`);
+    if (p.child_count > 0) bits.push(`<span class="kids">${esc(t("kids", { n: p.child_count }))}</span>`);
     return `<button type="button" class="row${child ? " child" : ""}" data-id="${p.id}">
       <span class="code">${child ? '<span class="branch">↳</span>' : ""}${esc(p.barcode)}</span>
       <span class="date">${child ? "" : fmtDate(p.created_at)}</span>
@@ -259,7 +266,7 @@
     code = cleanCode(code);
     const out = $("#search-result");
     if (!code) { out.innerHTML = ""; return; }
-    out.innerHTML = `<p class="muted">Søger…</p>`;
+    out.innerHTML = `<p class="muted">${t("search.searching")}</p>`;
 
     let { data, error } = await sb.from("parts_view").select("*").eq("barcode", code).limit(20);
     let exact = true;
@@ -277,20 +284,20 @@
       const kids = p.child_count > 0 ? await fetchChildren(p.id) : [];
       out.innerHTML = `
         <div class="result found">
-          <h3>✓ Fundet</h3>
+          <h3>${t("search.found")}</h3>
           <dl class="kv">
-            <dt>Stregkode</dt><dd>${esc(p.barcode)}</dd>
-            <dt>Type</dt><dd>${esc(p.type_name)}</dd>
-            <dt>Forhandler</dt><dd>${esc(p.dealer_name)}</dd>
-            <dt>Registreret</dt><dd>${fmtDate(p.created_at)}</dd>
-            ${isSuper() ? `<dt>Importør</dt><dd>${esc(p.importer_name)}</dd>` : ""}
-            ${p.parent_id ? `<dt>Sidder i</dt><dd><a href="#" data-open="${p.parent_id}">${esc(p.parent_type_name)} ${esc(p.parent_barcode)}</a></dd>` : ""}
-            ${p.note ? `<dt>Note</dt><dd>${esc(p.note)}</dd>` : ""}
+            <dt>${t("field.barcode")}</dt><dd>${esc(p.barcode)}</dd>
+            <dt>${t("field.type")}</dt><dd>${esc(p.type_name)}</dd>
+            <dt>${t("field.dealer")}</dt><dd>${esc(p.dealer_name)}</dd>
+            <dt>${t("field.registered")}</dt><dd>${fmtDate(p.created_at)}</dd>
+            ${isSuper() ? `<dt>${t("field.importer")}</dt><dd>${esc(p.importer_name)}</dd>` : ""}
+            ${p.parent_id ? `<dt>${t("field.sitsIn")}</dt><dd><a href="#" data-open="${p.parent_id}">${esc(p.parent_type_name)} ${esc(p.parent_barcode)}</a></dd>` : ""}
+            ${p.note ? `<dt>${t("field.note")}</dt><dd>${esc(p.note)}</dd>` : ""}
           </dl>
-          ${kids.length ? `<h3 class="sub-head">Underdele (${kids.length})</h3><div class="list">${kids.map((k) => rowHtml(k, { child: true })).join("")}</div>` : ""}
+          ${kids.length ? `<h3 class="sub-head">${t("detail.children")} (${kids.length})</h3><div class="list">${kids.map((k) => rowHtml(k, { child: true })).join("")}</div>` : ""}
           <div class="actions">
-            <button type="button" class="btn ghost" data-open="${p.id}">${isOwn(p) ? "Åbn / redigér" : "Åbn"}</button>
-            ${isOwn(p) && p.can_have_children && !p.parent_id ? `<button type="button" class="btn primary" data-kids="${p.id}">Scan underdele</button>` : ""}
+            <button type="button" class="btn ghost" data-open="${p.id}">${isOwn(p) ? t("btn.openEdit") : t("btn.open")}</button>
+            ${isOwn(p) && p.can_have_children && !p.parent_id ? `<button type="button" class="btn primary" data-kids="${p.id}">${t("detail.scanChildren")}</button>` : ""}
           </div>
         </div>`;
       bindRows(out);
@@ -301,25 +308,25 @@
       return;
     }
 
-    const createBtn = canEdit() ? `<button type="button" class="btn primary" id="create-from-search">Opret "${esc(code)}" som ny</button>` : "";
+    const createBtn = canEdit() ? `<button type="button" class="btn primary" id="create-from-search">${esc(t("search.createAsNew", { code }))}</button>` : "";
     if (data.length > 0) {
       hideCreate();
       out.innerHTML = `
         <div class="result none">
-          <h3>${exact ? `${data.length} dele med denne stregkode` : `Ingen præcis match – ${data.length} der ligner`}</h3>
+          <h3>${exact ? t("search.sameCode", { n: data.length }) : t("search.similar", { n: data.length })}</h3>
           <div class="list">${data.map((p) => rowHtml(p)).join("")}</div>
           ${exact ? "" : `<div class="actions">${createBtn}</div>`}
         </div>`;
       bindRows(out);
     } else if (canEdit()) {
       // Ikke fundet: vis opret-formularen direkte med stregkoden udfyldt
-      out.innerHTML = `<div class="result none"><h3>Ikke registreret</h3>
-        <p style="margin:0">Udfyld type og forhandler herunder for at oprette <strong>${esc(code)}</strong>.</p></div>`;
+      out.innerHTML = `<div class="result none"><h3>${t("search.notRegistered")}</h3>
+        <p style="margin:0">${t("search.fillIn", { code: esc(code) })}</p></div>`;
       showCreate(code);
       return;
     } else {
-      out.innerHTML = `<div class="result none"><h3>Ikke fundet</h3>
-        <p style="margin:0">Stregkoden <strong>${esc(code)}</strong> er ikke registreret.</p></div>`;
+      out.innerHTML = `<div class="result none"><h3>${t("search.notFound")}</h3>
+        <p style="margin:0">${t("search.notFoundText", { code: esc(code) })}</p></div>`;
     }
     const cb = $("#create-from-search");
     if (cb) cb.onclick = () => showCreate(code);
@@ -362,7 +369,7 @@
     const type_id = Number($("#create-type").value);
     const dealer_id = Number($("#create-dealer").value);
     const note = $("#create-note").value.trim() || null;
-    if (!barcode || !type_id || !dealer_id) { toast("Udfyld stregkode, type og forhandler", "err"); return; }
+    if (!barcode || !type_id || !dealer_id) { toast(t("create.missing"), "err"); return; }
 
     const btn = e.submitter; btn.disabled = true;
     const { data, error } = await sb.from("parts").insert({ barcode, type_id, dealer_id, note }).select("id").single();
@@ -370,7 +377,7 @@
 
     if (error) {
       if (error.code === "23505") {
-        toast("Stregkoden er allerede registreret", "err");
+        toast(t("create.dup"), "err");
         $("#search-input").value = barcode;
         search(barcode);
       } else {
@@ -381,13 +388,13 @@
     resetHome();
     loadRecent();
 
-    const t = typeById(type_id);
-    if (t && t.can_have_children) {
+    const ty = typeById(type_id);
+    if (ty && ty.can_have_children) {
       const p = await fetchPart(data.id);
-      toast(`${t.name} gemt ✓ – scan nu underdele`, "ok");
+      toast(t("create.savedParent", { type: ty.name }), "ok");
       if (p) openChildPanel(p);
     } else {
-      toast("Komponent gemt ✓", "ok");
+      toast(t("create.saved"), "ok");
     }
   });
 
@@ -405,7 +412,7 @@
       <strong class="code">${esc(parent.barcode)}</strong>
       <span class="muted small">${esc(parent.dealer_name)} · ${fmtDate(parent.created_at)}</span>`;
     if (!$("#child-type").value) {
-      const guess = ownTypes().find((t) => !t.can_have_children && t.active && /cylind/i.test(t.name));
+      const guess = ownTypes().find((x) => !x.can_have_children && x.active && /cylind|zylind/i.test(x.name));
       if (guess) $("#child-type").value = guess.id;
     }
     await renderChildList();
@@ -421,7 +428,7 @@
     const kids = await fetchChildren(p.id);
     $("#child-list").innerHTML = kids.length
       ? kids.map((k) => rowHtml(k, { child: true })).join("")
-      : `<p class="empty">Ingen underdele endnu – scan den første.</p>`;
+      : `<p class="empty">${t("child.empty")}</p>`;
     bindRows($("#child-list"));
   }
 
@@ -438,15 +445,15 @@
   });
 
   async function attachExisting(existing, parent) {
-    if (existing.id === parent.id) { toast("Det er hoveddelens egen stregkode", "err"); return false; }
-    if (existing.parent_id === parent.id) { toast("Delen sidder allerede på denne hoveddel", "err"); return false; }
+    if (existing.id === parent.id) { toast(t("child.ownCode"), "err"); return false; }
+    if (existing.parent_id === parent.id) { toast(t("child.already"), "err"); return false; }
     const q = existing.parent_id
-      ? `Delen ${existing.barcode} sidder i ${existing.parent_type_name} ${existing.parent_barcode}.\nFlyt den til ${parent.barcode}?`
-      : `Delen ${existing.barcode} (${existing.type_name}) findes allerede.\nKobl den på ${parent.barcode}?`;
+      ? t("child.confirmMove", { code: existing.barcode, ptype: existing.parent_type_name, pcode: existing.parent_barcode, target: parent.barcode })
+      : t("child.confirmAttach", { code: existing.barcode, type: existing.type_name, target: parent.barcode });
     if (!confirm(q)) return false;
     const { error } = await sb.from("parts").update({ parent_id: parent.id }).eq("id", existing.id);
     if (error) { toast(errMsg(error), "err"); return false; }
-    toast(existing.parent_id ? "Underdel flyttet ✓" : "Underdel koblet på ✓", "ok");
+    toast(existing.parent_id ? t("child.moved") : t("child.attached"), "ok");
     return true;
   }
 
@@ -456,8 +463,8 @@
     if (!parent) return;
     const barcode = cleanCode($("#child-barcode").value);
     const type_id = Number($("#child-type").value);
-    if (!barcode || !type_id) { toast("Udfyld stregkode og type", "err"); return; }
-    if (barcode === parent.barcode) { toast("Det er hoveddelens egen stregkode", "err"); return; }
+    if (!barcode || !type_id) { toast(t("child.missing"), "err"); return; }
+    if (barcode === parent.barcode) { toast(t("child.ownCode"), "err"); return; }
 
     const btn = e.submitter; if (btn) btn.disabled = true;
     const { error } = await sb.from("parts").insert({
@@ -472,7 +479,7 @@
     } else if (error) {
       toast(errMsg(error), "err");
     } else {
-      toast("Underdel tilføjet ✓", "ok");
+      toast(t("child.added"), "ok");
     }
     if (ok) {
       $("#child-barcode").value = "";
@@ -496,7 +503,7 @@
     const { data, error } = await sb.from("parts_view").select("*")
       .order("created_at", { ascending: false }).order("id", { ascending: false }).limit(5);
     if (error) { list.innerHTML = `<p class="error">${esc(errMsg(error))}</p>`; return; }
-    list.innerHTML = data.length ? data.map((p) => rowHtml(p)).join("") : `<p class="empty">Ingen registreringer endnu.</p>`;
+    list.innerHTML = data.length ? data.map((p) => rowHtml(p)).join("") : `<p class="empty">${t("recent.empty")}</p>`;
     bindRows(list);
   }
 
@@ -525,7 +532,7 @@
     const f = partsFilters();
     const grouped = !f.q && !f.type;
     const list = $("#parts-list");
-    if (reset) list.innerHTML = `<p class="muted">Henter…</p>`;
+    if (reset) list.innerHTML = `<p class="muted">${t("loading")}</p>`;
 
     const { data, error, count } = await applyFilters(
       sb.from("parts_view").select("*", { count: "exact" }), f, { grouped })
@@ -549,12 +556,12 @@
 
     $("#parts-count").textContent = `(${count ?? 0})`;
     $("#parts-mode").textContent = grouped
-      ? "Underdele vises under deres hoveddel."
-      : "Viser alle dele der matcher – også underdele.";
+      ? t("parts.modeGrouped")
+      : t("parts.modeFlat");
     list.innerHTML = state.parts.items.length
       ? state.parts.items.map(({ p, kids }) =>
           `<div class="group">${rowHtml(p)}${kids.map((k) => rowHtml(k, { child: true })).join("")}</div>`).join("")
-      : `<p class="empty">Ingen dele fundet.</p>`;
+      : `<p class="empty">${t("parts.empty")}</p>`;
     bindRows(list);
     $("#more-btn").hidden = data.length < PAGE;
   }
@@ -574,7 +581,7 @@
       const s = document.createElement("script");
       s.src = EXCELJS_URL;
       s.onload = resolve;
-      s.onerror = () => { excelLoading = null; reject(new Error("Kunne ikke hente Excel-modulet")); };
+      s.onerror = () => { excelLoading = null; reject(new Error(t("export.loadFail"))); };
       document.head.appendChild(s);
     }));
   }
@@ -606,7 +613,7 @@
     const btn = $("#export-btn");
     btn.disabled = true;
     const oldLabel = btn.textContent;
-    btn.textContent = "Henter…";
+    btn.textContent = t("loading");
     try {
       const f = partsFilters();
       const all = [];
@@ -618,14 +625,14 @@
         all.push(...data);
         if (data.length < 1000) break;
       }
-      if (!all.length) { toast("Ingen dele at eksportere", "err"); return; }
+      if (!all.length) { toast(t("export.none"), "err"); return; }
       await loadExcelJS();
 
       const rows = groupForExport(all);
       const wb = new ExcelJS.Workbook();
       wb.creator = "Rotax Reservedele";
       wb.created = new Date();
-      const ws = wb.addWorksheet("Dele", {
+      const ws = wb.addWorksheet(t("export.sheet"), {
         views: [{ state: "frozen", ySplit: 4 }],
         pageSetup: { orientation: "landscape", paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
       });
@@ -634,27 +641,27 @@
       const filterTxt = [
         ["#filter-importer", f.importer], ["#filter-type", f.type], ["#filter-dealer", f.dealer],
       ].filter(([, v]) => v).map(([sel]) => $(sel).selectedOptions[0].textContent);
-      if (f.q) filterTxt.push(`stregkode indeholder "${f.q}"`);
-      ws.getCell("A1").value = "Rotax reservedele";
+      if (f.q) filterTxt.push(t("export.contains", { q: f.q }));
+      ws.getCell("A1").value = t("export.title");
       ws.getCell("A1").font = { name: "Calibri", bold: true, size: 16, color: { argb: "FFE53138" } };
       ws.getCell("A2").value = [
-        isSuper() ? "Alle importører" : `Importør: ${state.me.importerName}`,
-        `Eksporteret ${fmtDate(new Date().toISOString())}`,
-        `${rows.length} dele`,
-        filterTxt.length ? `Filter: ${filterTxt.join(", ")}` : "",
+        isSuper() ? t("export.allImporters") : t("export.importer", { name: state.me.importerName }),
+        t("export.exported", { date: fmtDate(new Date().toISOString()) }),
+        t("export.count", { n: rows.length }),
+        filterTxt.length ? t("export.filter", { list: filterTxt.join(", ") }) : "",
       ].filter(Boolean).join("   ·   ");
       ws.getCell("A2").font = { name: "Calibri", size: 11, color: { argb: "FF555555" } };
 
       const cols = [
-        ...(isSuper() ? [{ name: "Importør", w: 16, get: (p) => p.importer_name }] : []),
-        { name: "Stregkode", w: 22, get: (p) => p.barcode },
-        { name: "Type", w: 16, get: (p) => p.type_name },
-        { name: "Forhandler", w: 24, get: (p) => p.dealer_name },
-        { name: "Registreret", w: 18, get: (p) => excelDate(p.created_at), fmt: "dd-mm-yyyy hh:mm" },
-        { name: "Niveau", w: 12, get: (p) => (p.parent_id ? "Underdel" : p.child_count > 0 ? "Hoveddel" : "Enkeltdel") },
-        { name: "Sidder i", w: 22, get: (p) => p.parent_barcode || "" },
-        { name: "Antal underdele", w: 16, get: (p) => (p.parent_id ? null : p.child_count || 0) },
-        { name: "Note", w: 32, get: (p) => p.note || "" },
+        ...(isSuper() ? [{ name: t("field.importer"), w: 16, get: (p) => p.importer_name }] : []),
+        { key: "code", name: t("field.barcode"), w: 22, get: (p) => p.barcode },
+        { name: t("field.type"), w: 16, get: (p) => p.type_name },
+        { name: t("field.dealer"), w: 24, get: (p) => p.dealer_name },
+        { name: t("field.registered"), w: 18, get: (p) => excelDate(p.created_at), fmt: t("export.dateFmt") },
+        { name: t("col.level"), w: 13, get: (p) => (p.parent_id ? t("level.child") : p.child_count > 0 ? t("level.parent") : t("level.single")) },
+        { name: t("field.sitsIn"), w: 22, get: (p) => p.parent_barcode || "" },
+        { name: t("col.childCount"), w: 18, get: (p) => (p.parent_id ? null : p.child_count || 0) },
+        { name: t("field.note"), w: 32, get: (p) => p.note || "" },
       ];
 
       ws.addTable({
@@ -672,7 +679,7 @@
         if (c.fmt) rows.forEach((_, r) => (ws.getRow(5 + r).getCell(i + 1).numFmt = c.fmt));
       });
       // Underdele rykkes lidt ind og skrives i grå, så de ses som del af hoveddelen
-      const codeCol = cols.findIndex((c) => c.name === "Stregkode") + 1;
+      const codeCol = cols.findIndex((c) => c.key === "code") + 1;
       rows.forEach((p, i) => {
         if (!p.parent_id) return;
         const r = ws.getRow(5 + i);
@@ -684,15 +691,15 @@
       const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      const imp = isSuper() ? "alle" : (state.me.importerName || "").toLowerCase().replace(/[^a-z0-9æøå]+/gi, "-");
-      a.download = `reservedele-${imp}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      const imp = isSuper() ? t("export.all") : (state.me.importerName || "").toLowerCase().replace(/[^a-z0-9æøåäöüß]+/gi, "-");
+      a.download = `${t("export.filename")}-${imp}-${new Date().toISOString().slice(0, 10)}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-      toast("Excel-fil hentet ✓", "ok");
+      toast(t("export.done"), "ok");
     } catch (err) {
-      toast(err.message || "Eksport fejlede", "err");
+      toast(err.message || t("export.failed"), "err");
     } finally {
       btn.disabled = false;
       btn.textContent = oldLabel;
@@ -704,29 +711,29 @@
 
   async function openDetail(id) {
     const p = await fetchPart(id);
-    if (!p) { toast("Delen findes ikke længere", "err"); afterChange(); return; }
+    if (!p) { toast(t("detail.gone"), "err"); afterChange(); return; }
     state.detail = p;
     const own = isOwn(p);
 
     $("#detail-title").textContent = p.type_name;
     $("#detail-barcode").textContent = p.barcode;
-    $("#detail-date").textContent = "Registreret " + fmtDate(p.created_at) + (isSuper() ? ` · ${p.importer_name}` : "");
+    $("#detail-date").textContent = t("detail.registeredAt", { date: fmtDate(p.created_at) }) + (isSuper() ? ` · ${p.importer_name}` : "");
 
     // Hoveddel
     const pb = $("#detail-parent");
     if (p.parent_id) {
       pb.hidden = false;
       pb.innerHTML = `
-        <div>Underdel af <a href="#" data-open="${p.parent_id}"><strong>${esc(p.parent_type_name)} ${esc(p.parent_barcode)}</strong></a></div>
+        <div>${t("detail.childOf")} <a href="#" data-open="${p.parent_id}"><strong>${esc(p.parent_type_name)} ${esc(p.parent_barcode)}</strong></a></div>
         ${own ? `<div class="row-actions">
-          <button type="button" class="btn ghost small-btn" data-act="move">Flyt til anden</button>
-          <button type="button" class="btn ghost small-btn" data-act="detach">Løsn</button>
+          <button type="button" class="btn ghost small-btn" data-act="move">${t("btn.moveOther")}</button>
+          <button type="button" class="btn ghost small-btn" data-act="detach">${t("btn.detach")}</button>
         </div>` : ""}`;
     } else if (own && !p.can_have_children && !p.child_count && ownTypes().some((t) => t.can_have_children)) {
       pb.hidden = false;
       pb.innerHTML = `
-        <div class="muted">Ikke koblet på en hoveddel</div>
-        <div class="row-actions"><button type="button" class="btn ghost small-btn" data-act="move">Kobl på motor</button></div>`;
+        <div class="muted">${t("detail.notAttached")}</div>
+        <div class="row-actions"><button type="button" class="btn ghost small-btn" data-act="move">${t("btn.attachToEngine")}</button></div>`;
     } else {
       pb.hidden = true;
       pb.innerHTML = "";
@@ -748,10 +755,10 @@
     $("#detail-dealer").disabled = !own || !!p.parent_id;
     $("#detail-note").disabled = !own;
     $("#detail-dealer-note").hidden = !p.parent_id;
-    $("#detail-dealer-note").textContent = "Forhandler arves fra hoveddelen.";
+    $("#detail-dealer-note").textContent = t("detail.dealerInherited");
     if (!p.parent_id && p.child_count > 0) {
       $("#detail-dealer-note").hidden = false;
-      $("#detail-dealer-note").textContent = "Ændres forhandleren, følger alle underdele med.";
+      $("#detail-dealer-note").textContent = t("detail.dealerFollows");
     }
 
     // Underdele
@@ -763,7 +770,7 @@
       $("#detail-child-count").textContent = `(${kids.length})`;
       $("#detail-children").innerHTML = kids.length
         ? kids.map((k) => rowHtml(k, { child: true })).join("")
-        : `<p class="empty">Ingen underdele.</p>`;
+        : `<p class="empty">${t("detail.noChildren")}</p>`;
       bindRows($("#detail-children"));
     }
 
@@ -771,17 +778,17 @@
     const { data: moves } = await sb.from("part_moves").select("*").eq("part_id", p.id).order("moved_at", { ascending: false });
     $("#detail-history-wrap").hidden = !(moves && moves.length);
     $("#detail-history").innerHTML = (moves || []).map((m) => {
-      const from = m.from_parent_id ? esc(m.from_parent_barcode || "slettet hoveddel") : null;
+      const from = m.from_parent_id ? esc(m.from_parent_barcode || t("hist.deletedParent")) : null;
       const to = m.to_parent_id ? esc(m.to_parent_barcode || "?") : null;
-      const txt = from && to ? `Flyttet fra <b>${from}</b> til <b>${to}</b>`
-        : to ? `Koblet på <b>${to}</b>` : `Løsnet fra <b>${from}</b>`;
+      const txt = from && to ? t("hist.moved", { from, to })
+        : to ? t("hist.attached", { to }) : t("hist.detached", { from });
       return `<li><span class="muted">${fmtDate(m.moved_at)}</span> ${txt}</li>`;
     }).join("");
 
     // Knapper
     $("#detail-delete").hidden = !own;
     $("#detail-save").hidden = !own;
-    $("#detail-cancel").textContent = own ? "Annullér" : "Luk";
+    $("#detail-cancel").textContent = own ? t("btn.cancel") : t("btn.close");
 
     if (!dlg.open) dlg.showModal();
   }
@@ -804,26 +811,26 @@
   async function doMove() {
     const p = state.detail;
     const code = cleanCode($("#move-barcode").value);
-    if (!code) { toast("Scan eller skriv hoveddelens stregkode", "err"); return; }
+    if (!code) { toast(t("move.missing"), "err"); return; }
     const target = await findOwnByBarcode(code);
-    if (!target) { toast(`Stregkoden ${code} er ikke registreret`, "err"); return; }
-    if (target.id === p.id) { toast("En del kan ikke kobles på sig selv", "err"); return; }
-    if (target.id === p.parent_id) { toast("Delen sidder allerede der", "err"); return; }
-    if (!target.can_have_children) { toast(`${target.type_name} kan ikke have underdele`, "err"); return; }
-    if (target.parent_id) { toast("Den valgte del er selv en underdel", "err"); return; }
+    if (!target) { toast(t("move.notReg", { code }), "err"); return; }
+    if (target.id === p.id) { toast(t("move.self"), "err"); return; }
+    if (target.id === p.parent_id) { toast(t("move.already"), "err"); return; }
+    if (!target.can_have_children) { toast(t("move.typeNo", { type: target.type_name }), "err"); return; }
+    if (target.parent_id) { toast(t("move.targetIsChild"), "err"); return; }
     const { error } = await sb.from("parts").update({ parent_id: target.id }).eq("id", p.id);
     if (error) { toast(errMsg(error), "err"); return; }
-    toast(p.parent_id ? `Flyttet til ${target.barcode} ✓` : `Koblet på ${target.barcode} ✓`, "ok");
+    toast(p.parent_id ? t("move.movedTo", { code: target.barcode }) : t("move.attachedTo", { code: target.barcode }), "ok");
     afterChange();
     openDetail(p.id);
   }
 
   async function detach() {
     const p = state.detail;
-    if (!confirm(`Løsn ${p.barcode} fra ${p.parent_barcode}?`)) return;
+    if (!confirm(t("detach.confirm", { code: p.barcode, parent: p.parent_barcode }))) return;
     const { error } = await sb.from("parts").update({ parent_id: null }).eq("id", p.id);
     if (error) { toast(errMsg(error), "err"); return; }
-    toast("Underdel løsnet", "ok");
+    toast(t("detach.done"), "ok");
     afterChange();
     openDetail(p.id);
   }
@@ -839,19 +846,19 @@
     const { error } = await sb.from("parts").update(upd).eq("id", p.id);
     if (error) { toast(errMsg(error), "err"); return; }
     dlg.close();
-    toast("Ændringer gemt ✓", "ok");
+    toast(t("detail.saved"), "ok");
     afterChange();
   });
 
   $("#detail-delete").onclick = async () => {
     const p = state.detail;
-    const extra = p.child_count > 0 ? `\n\nDens ${p.child_count} underdel(e) bliver løsnet, men ikke slettet.` : "";
-    if (!confirm(`Slet komponenten ${p.barcode}?\nDet kan ikke fortrydes.${extra}`)) return;
+    const extra = p.child_count > 0 ? t("delete.childrenNote", { n: String(p.child_count) }) : "";
+    if (!confirm(t("delete.confirm", { code: p.barcode, extra }))) return;
     const { error } = await sb.from("parts").delete().eq("id", p.id);
     if (error) { toast(errMsg(error), "err"); return; }
     dlg.close();
     if (state.childParent && state.childParent.id === p.id) closeChildPanel();
-    toast("Komponent slettet", "ok");
+    toast(t("delete.done"), "ok");
     afterChange();
   };
 
@@ -869,14 +876,14 @@
       const edit = canEdit();
       ul.innerHTML = items.length ? items.map((it) => `
         <li class="${it.active ? "" : "inactive"}" data-id="${it.id}">
-          <span class="name">${esc(it.name)}${it.can_have_children ? ' <span class="badge">Underdele</span>' : ""}</span>
+          <span class="name">${esc(it.name)}${it.can_have_children ? ` <span class="badge">${t("setup.badge")}</span>` : ""}</span>
           ${edit ? `<span class="li-actions">
-            ${table === "part_types" ? `<button class="btn ghost icon-btn" data-act="children">${it.can_have_children ? "Fjern underdele" : "Tillad underdele"}</button>` : ""}
-            <button class="btn ghost icon-btn" data-act="rename">Omdøb</button>
-            <button class="btn ghost icon-btn" data-act="toggle">${it.active ? "Skjul" : "Aktivér"}</button>
-            <button class="btn danger icon-btn" data-act="delete" aria-label="Slet">Slet</button>
+            ${table === "part_types" ? `<button class="btn ghost icon-btn" data-act="children">${it.can_have_children ? t("setup.removeChildren") : t("setup.allowChildren")}</button>` : ""}
+            <button class="btn ghost icon-btn" data-act="rename">${t("btn.rename")}</button>
+            <button class="btn ghost icon-btn" data-act="toggle">${it.active ? t("btn.hide") : t("btn.activate")}</button>
+            <button class="btn danger icon-btn" data-act="delete">${t("btn.delete")}</button>
           </span>` : ""}
-        </li>`).join("") : `<li class="empty">Ingen endnu${edit ? " – tilføj ovenfor" : ""}.</li>`;
+        </li>`).join("") : `<li class="empty">${t("setup.none")}${edit ? t("setup.addAbove") : ""}.</li>`;
       ul.onclick = (e) => {
         const btn = e.target.closest("button[data-act]");
         if (!btn) return;
@@ -889,19 +896,19 @@
   async function setupAction(table, id, act, item) {
     let res;
     if (act === "rename") {
-      const name = prompt("Nyt navn:", item.name);
+      const name = prompt(t("setup.newName"), item.name);
       if (!name || !name.trim() || name.trim() === item.name) return;
       res = await sb.from(table).update({ name: name.trim() }).eq("id", id);
     } else if (act === "toggle") {
       res = await sb.from(table).update({ active: !item.active }).eq("id", id);
     } else if (act === "children") {
-      if (item.can_have_children && !confirm(`Fjern muligheden for underdele på "${item.name}"?\nEksisterende underdele bliver siddende.`)) return;
+      if (item.can_have_children && !confirm(t("setup.confirmRemoveChildren", { name: item.name }))) return;
       res = await sb.from(table).update({ can_have_children: !item.can_have_children }).eq("id", id);
     } else if (act === "delete") {
-      if (!confirm(`Slet "${item.name}"?`)) return;
+      if (!confirm(t("setup.confirmDelete", { name: item.name }))) return;
       res = await sb.from(table).delete().eq("id", id);
       if (res.error && res.error.code === "23503") {
-        toast(`"${item.name}" er brugt på komponenter – brug "Skjul" i stedet`, "err");
+        toast(t("setup.inUse", { name: item.name }), "err");
         return;
       }
     }
@@ -920,10 +927,10 @@
       const cb = $("input[name=children]", form);
       if (cb) row.can_have_children = cb.checked;
       const { error } = await sb.from(form.dataset.table).insert(row);
-      if (error) { toast(error.code === "23505" ? `"${name}" findes allerede` : errMsg(error), "err"); return; }
+      if (error) { toast(error.code === "23505" ? t("setup.exists", { name }) : errMsg(error), "err"); return; }
       input.value = "";
       if (cb) cb.checked = false;
-      toast(`"${name}" tilføjet ✓`, "ok");
+      toast(t("setup.added", { name }), "ok");
       loadLookups();
     });
   });
@@ -939,7 +946,7 @@
   async function openScanner(targetId) {
     scanTarget = targetId;
     scanDlg.showModal();
-    $("#scanner-msg").textContent = "Starter kamera…";
+    $("#scanner-msg").textContent = t("scanner.starting");
     try {
       scanner = new Html5Qrcode("scanner-view", {
         formatsToSupport: FORMATS,
@@ -952,9 +959,9 @@
         onScan,
         () => {}
       );
-      $("#scanner-msg").textContent = "Hold stregkoden inden for rammen";
+      $("#scanner-msg").textContent = t("scanner.hold");
     } catch (err) {
-      $("#scanner-msg").textContent = "Kunne ikke starte kameraet. Tjek at appen har adgang til kameraet.";
+      $("#scanner-msg").textContent = t("scanner.fail");
       console.error(err);
     }
   }
@@ -992,13 +999,29 @@
   scanDlg.addEventListener("cancel", (e) => { e.preventDefault(); closeScanner(); });
 
   // ---------------- Opstart ----------------
+  let ready = false;
   async function boot() {
     const ok = await loadProfile();
     if (!ok) return;
     route();
     await loadLookups();
     loadRecent();
+    ready = true;
   }
+
+  // Sprogskift: tegn alt dynamisk indhold igen på det nye sprog
+  window.addEventListener("langchange", () => {
+    if (!ready) return;
+    if (isSuper()) renderImporterFilter();
+    renderAccount();
+    renderDropdowns();
+    renderSetupLists();
+    loadRecent();
+    if (currentRoute === "parts") loadParts(true);
+    if (cleanCode($("#search-input").value)) search($("#search-input").value);
+    if (state.childParent) openChildPanel(state.childParent);
+    if (dlg.open && state.detail) openDetail(state.detail.id);
+  });
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));

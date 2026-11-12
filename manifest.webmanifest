@@ -1,8 +1,8 @@
 {
-  "name": "Rotax Reservedele",
-  "short_name": "Reservedele",
-  "description": "Registrering af reservedele med stregkode",
-  "lang": "da",
+  "name": "Rotax Parts",
+  "short_name": "Rotax Parts",
+  "description": "Spare parts registration by barcode",
+  "lang": "en",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -10,8 +10,21 @@
   "background_color": "#f4f6f9",
   "theme_color": "#ffffff",
   "icons": [
-    { "src": "icons/app-icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icons/app-icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icons/app-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icons/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/app-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

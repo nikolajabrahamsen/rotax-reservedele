@@ -1,8 +1,8 @@
 // Service worker: app-skal caches til offline, data hentes altid live fra Supabase.
 // VED OPDATERING: hæv VERSION her OG ?v=… i index.html (samme tal).
-const VERSION = 8;
+const VERSION = 9;
 const CACHE = "reservedele-v" + VERSION;
-const SHELL = ["./", "index.html", `styles.css?v=${VERSION}`, `app.js?v=${VERSION}`, `config.js?v=${VERSION}`,
+const SHELL = ["./", "index.html", `styles.css?v=${VERSION}`, `i18n.js?v=${VERSION}`, `app.js?v=${VERSION}`, `config.js?v=${VERSION}`,
   "manifest.webmanifest", "icons/app-icon-192.png", "icons/app-icon-512.png",
   "icons/app-apple-touch-icon.png", "icons/rotax-logo.png"];
 

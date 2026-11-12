@@ -27,6 +27,12 @@ Frontend: ren HTML/CSS/JS hostet på GitHub Pages. Backend: Supabase (Postgres +
 - Slettes en hoveddel, bliver underdelene løsnet (ikke slettet)
 - Scanner du en stregkode der allerede findes, tilbyder appen at koble/flytte den eksisterende del
 
+### Sprog
+- Engelsk, dansk og tysk
+- Første gang følger appen telefonens/computerens sprog (ellers engelsk). Sproget kan skiftes i topbjælken, på login-siden og under Setup → Konto, og valget huskes på enheden
+- Alle tekster ligger i `i18n.js`. Nyt sprog: kopiér `en`-blokken, oversæt og tilføj sprogkoden i `SUPPORTED` og `LOCALES`
+- Typer og forhandlere er importørens egne navne og oversættes ikke
+
 ### Importører
 - Hver bruger hører til én importør og ser **kun** sin egen importørs typer, forhandlere og dele
 - Det håndhæves i databasen (RLS), ikke kun i appen
@@ -74,13 +80,14 @@ on conflict (user_id) do update set importer_id = null, role = 'superadmin';
 - **Windows (Edge/Chrome):** installér-ikonet i adresselinjen
 
 ## Opdatering af appen
-Ved ændringer i filerne: hæv `VERSION` i `sw.js` og `?v=` på styles.css, config.js og app.js i `index.html` (samme tal). Så henter alle enheder den nye version med det samme.
+Ved ændringer i filerne: hæv `VERSION` i `sw.js` og `?v=` på styles.css, i18n.js, config.js og app.js i `index.html` (samme tal). Så henter alle enheder den nye version med det samme.
 
 ## Filer
 | Fil | Indhold |
 |---|---|
 | `index.html` | Forside, Dele, Setup, login, scanner og detaljedialog |
 | `app.js` | Al logik (Supabase, scanner, søgning, underdele, setup) |
+| `i18n.js` | Oversættelser (engelsk, dansk, tysk) |
 | `styles.css` | Rotax-farver, stor og tydelig tekst |
 | `config.js` | Supabase-nøgler |
 | `sw.js`, `manifest.webmanifest`, `icons/` | PWA |

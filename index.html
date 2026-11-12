@@ -1,32 +1,33 @@
 <!doctype html>
-<html lang="da">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Reservedele</title>
+  <title>Spare parts</title>
   <meta name="theme-color" content="#ffffff">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Reservedele">
+  <meta name="apple-mobile-web-app-title" content="Rotax Parts">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/favicon-64.png">
   <link rel="preload" as="image" href="icons/rotax-logo.png">
   <link rel="apple-touch-icon" href="icons/app-apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=8">
+  <link rel="stylesheet" href="styles.css?v=9">
 </head>
 <body>
 
 <!-- ============ LOGIN ============ -->
 <section id="view-login" class="view" hidden>
   <div class="login-card">
+    <div class="login-lang"><select class="lang-select"></select></div>
     <img src="icons/rotax-logo.png" alt="Rotax Racing" class="login-logo">
-    <h1>Reservedele</h1>
-    <p class="muted">Log ind for at fortsætte</p>
+    <h1 data-i18n="app.title">Spare parts</h1>
+    <p class="muted" data-i18n="login.subtitle">Sign in to continue</p>
     <form id="login-form" autocomplete="on">
-      <label>E-mail<input type="email" id="login-email" required autocomplete="username"></label>
-      <label>Adgangskode<input type="password" id="login-pass" required autocomplete="current-password"></label>
-      <button class="btn primary block" type="submit">Log ind</button>
+      <label><span data-i18n="login.email">Email</span><input type="email" id="login-email" required autocomplete="username"></label>
+      <label><span data-i18n="login.password">Password</span><input type="password" id="login-pass" required autocomplete="current-password"></label>
+      <button class="btn primary block" type="submit" data-i18n="login.submit">Sign in</button>
       <p id="login-error" class="error" hidden></p>
     </form>
   </div>
@@ -36,95 +37,101 @@
 <div id="app" hidden>
   <header class="topbar">
     <nav class="tabs">
-      <a href="#/" data-route="home" class="tab">Forside</a>
-      <a href="#/parts" data-route="parts" class="tab">Dele</a>
-      <a href="#/setup" data-route="setup" class="tab">Setup</a>
+      <a href="#/" data-route="home" class="tab" data-i18n="nav.home">Home</a>
+      <a href="#/parts" data-route="parts" class="tab" data-i18n="nav.parts">Parts</a>
+      <a href="#/setup" data-route="setup" class="tab" data-i18n="nav.setup">Setup</a>
     </nav>
-    <div class="brand"><button id="topbar-logout" class="btn ghost small-btn" type="button">Log ud</button><img src="icons/rotax-logo.png" alt="Rotax Racing" class="brand-logo"></div>
+    <div class="brand">
+      <span class="brand-actions">
+        <select class="lang-select compact"></select>
+        <button id="topbar-logout" class="btn ghost small-btn" type="button" data-i18n="logout">Sign out</button>
+      </span>
+      <img src="icons/rotax-logo.png" alt="Rotax Racing" class="brand-logo">
+    </div>
   </header>
 
   <main>
     <div id="no-importer" class="card notice" hidden>
-      <h2>Ingen importør</h2>
-      <p>Din bruger er ikke tilknyttet en importør endnu. Kontakt administratoren.</p>
+      <h2 data-i18n="noimp.title">No importer</h2>
+      <p></p>
     </div>
-    <div id="readonly-banner" class="banner" hidden>Rotax-oversigt: du kan se alle importørers dele, men ikke oprette eller rette.</div>
+    <div id="readonly-banner" class="banner" hidden data-i18n="readonly"></div>
 
     <!-- ---------- FORSIDE ---------- -->
     <section id="view-home" class="view">
 
       <div class="card">
-        <h2>Scan stregkode</h2>
-        <p class="muted small" style="margin:-6px 0 12px">Scan eller skriv en stregkode. Findes den, vises delen – ellers kan du oprette den.</p>
+        <h2 data-i18n="home.scanTitle">Scan barcode</h2>
+        <p class="muted small" style="margin:-6px 0 12px" data-i18n="home.scanHelp"></p>
         <form id="search-form" class="scan-row">
-          <input id="search-input" type="text" inputmode="text" placeholder="Scan eller skriv stregkode"
+          <input id="search-input" type="text" inputmode="text" data-i18n-ph="barcode.placeholder"
                  autocomplete="off" autocapitalize="off" spellcheck="false">
-          <button type="button" class="btn scan" data-scan-target="search-input" aria-label="Scan med kamera">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>
-                <span>Scan</span>
-              </button>
-          <button type="submit" class="btn primary">Søg</button>
+          <button type="button" class="btn scan" data-scan-target="search-input" data-i18n-aria="scan.aria">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>
+            <span data-i18n="btn.scan">Scan</span>
+          </button>
+          <button type="submit" class="btn primary" data-i18n="btn.search">Search</button>
         </form>
         <div id="search-result"></div>
       </div>
 
       <div class="card create-card" id="create-card" hidden>
         <div class="card-head">
-          <h2>Opret ny komponent</h2>
-          <button type="button" id="create-cancel" class="btn ghost small-btn">Annullér</button>
+          <h2 data-i18n="create.title">Create new part</h2>
+          <button type="button" id="create-cancel" class="btn ghost small-btn" data-i18n="btn.cancel">Cancel</button>
         </div>
         <form id="create-form" class="form-grid">
           <input type="hidden" id="create-barcode">
           <div class="span-2">
-            <div class="field-label">Stregkode</div>
+            <div class="field-label" data-i18n="field.barcode">Barcode</div>
             <div class="detail-barcode" id="create-code"></div>
           </div>
-          <label>Type
+          <label><span data-i18n="field.type">Type</span>
             <select id="create-type" required></select>
           </label>
-          <label>Forhandler
+          <label><span data-i18n="field.dealer">Dealer</span>
             <select id="create-dealer" required></select>
           </label>
-          <label class="span-2"><span>Note <span class="muted small">(valgfri)</span></span>
+          <label class="span-2"><span><span data-i18n="field.note">Note</span> <span class="muted small" data-i18n="field.optional">(optional)</span></span>
             <input id="create-note" type="text" maxlength="200">
           </label>
-          <p class="muted small span-2" id="create-hint">Dato og tid gemmes automatisk.</p>
-          <button type="submit" class="btn primary block span-2">Gem komponent</button>
+          <p class="muted small span-2" id="create-hint"></p>
+          <button type="submit" class="btn primary block span-2" data-i18n="create.save">Save part</button>
         </form>
       </div>
 
       <!-- Underdele-tilstand: vises efter en motor er gemt -->
       <div class="card child-panel" id="child-panel" hidden>
         <div class="card-head">
-          <h2>Scan underdele</h2>
-          <button type="button" id="child-done" class="btn primary small-btn">Færdig</button>
+          <h2 data-i18n="child.title">Scan sub-parts</h2>
+          <button type="button" id="child-done" class="btn primary small-btn" data-i18n="btn.done">Done</button>
         </div>
         <div class="parent-box" id="child-parent"></div>
         <form id="child-form" class="form-grid">
-          <label class="span-2">Underdelens stregkode
+          <label class="span-2"><span data-i18n="child.barcode">Sub-part barcode</span>
             <div class="scan-row">
-              <input id="child-barcode" type="text" required placeholder="Scan eller skriv stregkode"
+              <input id="child-barcode" type="text" required data-i18n-ph="barcode.placeholder"
                      autocomplete="off" autocapitalize="off" spellcheck="false">
-              <button type="button" class="btn scan" data-scan-target="child-barcode" aria-label="Scan med kamera">
+              <button type="button" class="btn scan" data-scan-target="child-barcode" data-i18n-aria="scan.aria">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>
-                <span>Scan</span>
+                <span data-i18n="btn.scan">Scan</span>
               </button>
             </div>
           </label>
-          <label class="span-2">Type
+          <label class="span-2"><span data-i18n="field.type">Type</span>
             <select id="child-type" required></select>
           </label>
-          <p class="muted small span-2">Forhandler og dato arves fra hoveddelen.</p>
-          <button type="submit" class="btn primary block span-2">Tilføj underdel</button>
+          <p class="muted small span-2" data-i18n="child.inherit"></p>
+          <button type="submit" class="btn primary block span-2" data-i18n="child.add">Add sub-part</button>
         </form>
-        <h3 class="sub-head">Underdele på denne del</h3>
+        <h3 class="sub-head" data-i18n="child.listTitle">Sub-parts on this part</h3>
         <div id="child-list" class="list"></div>
       </div>
 
       <div class="card">
         <div class="card-head">
-          <h2>Seneste registreringer</h2>
-          <a href="#/parts" class="btn ghost small-btn">Se alle dele</a>
+          <h2 data-i18n="recent.title">Latest registrations</h2>
+          <a href="#/parts" class="btn ghost small-btn" data-i18n="recent.all">See all parts</a>
         </div>
         <div id="recent-list" class="list"></div>
       </div>
@@ -134,51 +141,52 @@
     <section id="view-parts" class="view" hidden>
       <div class="card">
         <div class="card-head">
-          <h2>Dele <span class="count" id="parts-count"></span></h2>
-          <button id="export-btn" class="btn ghost small-btn">Eksportér til Excel</button>
+          <h2><span data-i18n="parts.title">Parts</span> <span class="count" id="parts-count"></span></h2>
+          <button id="export-btn" class="btn ghost small-btn" data-i18n="export.btn">Export to Excel</button>
         </div>
         <div class="filters">
-          <input id="parts-q" type="search" placeholder="Søg i stregkoder" class="span-all"
+          <input id="parts-q" type="search" data-i18n-ph="parts.searchPh" class="span-all"
                  autocomplete="off" autocapitalize="off" spellcheck="false">
-          <select id="filter-importer" hidden><option value="">Alle importører</option></select>
-          <select id="filter-type"><option value="">Alle typer</option></select>
-          <select id="filter-dealer"><option value="">Alle forhandlere</option></select>
+          <select id="filter-importer" hidden></select>
+          <select id="filter-type"></select>
+          <select id="filter-dealer"></select>
         </div>
         <p class="muted small" id="parts-mode"></p>
         <div id="parts-list" class="list"></div>
-        <button id="more-btn" class="btn ghost block" hidden>Vis flere</button>
+        <button id="more-btn" class="btn ghost block" hidden data-i18n="btn.more">Show more</button>
       </div>
     </section>
 
     <!-- ---------- SETUP ---------- -->
     <section id="view-setup" class="view" hidden>
       <div class="card">
-        <h2>Typer</h2>
+        <h2 data-i18n="setup.types">Types</h2>
         <form class="add-row wrap" data-table="part_types">
-          <input type="text" placeholder="Ny type, fx Stempel" required maxlength="80">
-          <label class="check"><input type="checkbox" name="children"> Kan have underdele</label>
-          <button class="btn primary" type="submit">Tilføj</button>
+          <input type="text" data-i18n-ph="setup.typePh" required maxlength="80">
+          <label class="check"><input type="checkbox" name="children"> <span data-i18n="setup.canChildren">Can have sub-parts</span></label>
+          <button class="btn primary" type="submit" data-i18n="btn.add">Add</button>
         </form>
-        <p class="muted small">Typer med "Kan have underdele" (fx Motor) kan få cylinder, plombe m.m. scannet ind under sig.</p>
+        <p class="muted small" data-i18n="setup.typesHelp"></p>
         <ul class="setup-list" id="list-part_types"></ul>
       </div>
 
       <div class="card">
-        <h2>Forhandlere</h2>
+        <h2 data-i18n="setup.dealers">Dealers</h2>
         <form class="add-row" data-table="dealers">
-          <input type="text" placeholder="Ny forhandler" required maxlength="80">
-          <button class="btn primary" type="submit">Tilføj</button>
+          <input type="text" data-i18n-ph="setup.dealerPh" required maxlength="80">
+          <button class="btn primary" type="submit" data-i18n="btn.add">Add</button>
         </form>
         <ul class="setup-list" id="list-dealers"></ul>
       </div>
 
       <div class="card">
-        <h2>Konto</h2>
+        <h2 data-i18n="setup.account">Account</h2>
         <dl class="kv">
-          <dt>Bruger</dt><dd id="user-email"></dd>
-          <dt>Importør</dt><dd id="user-importer"></dd>
+          <dt data-i18n="field.user">User</dt><dd id="user-email"></dd>
+          <dt data-i18n="field.importer">Importer</dt><dd id="user-importer"></dd>
+          <dt data-i18n="lang.label">Language</dt><dd><select class="lang-select"></select></dd>
         </dl>
-        <button id="logout-btn" class="btn ghost" style="margin-top:14px">Log ud</button>
+        <button id="logout-btn" class="btn ghost" style="margin-top:14px" data-i18n="logout">Sign out</button>
       </div>
     </section>
   </main>
@@ -187,8 +195,8 @@
 <!-- ============ SCANNER ============ -->
 <dialog id="scanner" class="scanner-dialog">
   <div class="scanner-head">
-    <strong>Peg kameraet mod stregkoden</strong>
-    <button id="scanner-close" type="button" class="btn ghost">Luk</button>
+    <strong data-i18n="scanner.title">Point the camera at the barcode</strong>
+    <button id="scanner-close" type="button" class="btn ghost" data-i18n="btn.close">Close</button>
   </div>
   <div id="scanner-view"></div>
   <p id="scanner-msg" class="muted small center"></p>
@@ -198,8 +206,8 @@
 <dialog id="detail-dialog">
   <form method="dialog" id="detail-form" class="form-grid">
     <div class="span-2 dialog-title">
-      <h2 id="detail-title">Komponent</h2>
-      <button type="button" id="detail-x" class="btn ghost small-btn" aria-label="Luk">Luk</button>
+      <h2 id="detail-title"></h2>
+      <button type="button" id="detail-x" class="btn ghost small-btn" data-i18n="btn.close">Close</button>
     </div>
     <div class="span-2 detail-barcode" id="detail-barcode"></div>
     <p class="span-2 muted" id="detail-date"></p>
@@ -207,54 +215,55 @@
     <div class="span-2 parent-box" id="detail-parent" hidden></div>
 
     <div class="span-2 move-box" id="move-box" hidden>
-      <label>Scan hoveddelens stregkode (fx motoren)
+      <label><span data-i18n="move.label">Scan the main part's barcode</span>
         <div class="scan-row">
-          <input id="move-barcode" type="text" placeholder="Stregkode på motor"
+          <input id="move-barcode" type="text" data-i18n-ph="move.ph"
                  autocomplete="off" autocapitalize="off" spellcheck="false">
-          <button type="button" class="btn scan" data-scan-target="move-barcode" aria-label="Scan med kamera">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>
-                <span>Scan</span>
-              </button>
+          <button type="button" class="btn scan" data-scan-target="move-barcode" data-i18n-aria="scan.aria">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>
+            <span data-i18n="btn.scan">Scan</span>
+          </button>
         </div>
       </label>
       <div class="row-actions">
-        <button type="button" id="move-cancel" class="btn ghost">Annullér</button>
-        <button type="button" id="move-go" class="btn primary">Kobl på</button>
+        <button type="button" id="move-cancel" class="btn ghost" data-i18n="btn.cancel">Cancel</button>
+        <button type="button" id="move-go" class="btn primary" data-i18n="btn.attach">Attach</button>
       </div>
     </div>
 
-    <label>Type<select id="detail-type"></select></label>
-    <label>Forhandler<select id="detail-dealer"></select></label>
-    <p class="span-2 muted small" id="detail-dealer-note" hidden>Forhandler arves fra hoveddelen.</p>
-    <label class="span-2">Note<input id="detail-note" type="text" maxlength="200"></label>
+    <label><span data-i18n="field.type">Type</span><select id="detail-type"></select></label>
+    <label><span data-i18n="field.dealer">Dealer</span><select id="detail-dealer"></select></label>
+    <p class="span-2 muted small" id="detail-dealer-note" hidden></p>
+    <label class="span-2"><span data-i18n="field.note">Note</span><input id="detail-note" type="text" maxlength="200"></label>
 
     <div class="span-2" id="detail-children-wrap" hidden>
       <div class="card-head">
-        <h3 class="sub-head">Underdele <span class="count" id="detail-child-count"></span></h3>
-        <button type="button" id="detail-add-children" class="btn ghost small-btn">Scan underdele</button>
+        <h3 class="sub-head"><span data-i18n="detail.children">Sub-parts</span> <span class="count" id="detail-child-count"></span></h3>
+        <button type="button" id="detail-add-children" class="btn ghost small-btn" data-i18n="detail.scanChildren">Scan sub-parts</button>
       </div>
       <div id="detail-children" class="list"></div>
     </div>
 
     <div class="span-2" id="detail-history-wrap" hidden>
-      <h3 class="sub-head">Historik</h3>
+      <h3 class="sub-head" data-i18n="detail.history">History</h3>
       <ul id="detail-history" class="history"></ul>
     </div>
 
     <div class="span-2 dialog-actions" id="detail-actions">
-      <button type="button" id="detail-delete" class="btn danger">Slet</button>
+      <button type="button" id="detail-delete" class="btn danger" data-i18n="btn.delete">Delete</button>
       <span class="spacer"></span>
-      <button type="button" id="detail-cancel" class="btn ghost">Annullér</button>
-      <button type="submit" id="detail-save" class="btn primary">Gem ændringer</button>
+      <button type="button" id="detail-cancel" class="btn ghost" data-i18n="btn.cancel">Cancel</button>
+      <button type="submit" id="detail-save" class="btn primary" data-i18n="btn.saveChanges">Save changes</button>
     </div>
   </form>
 </dialog>
 
 <div id="toast" class="toast" hidden></div>
 
+<script src="i18n.js?v=9"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="config.js?v=8"></script>
-<script src="app.js?v=8"></script>
+<script src="config.js?v=9"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>
