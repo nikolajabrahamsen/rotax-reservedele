@@ -271,3 +271,6 @@ select:disabled, input:disabled { background-color: var(--bg); color: var(--mute
   .topbar .tab { flex: 1; text-align: center; }
   .brand-logo { height: 28px; }
 }
+
+.create-card { border: 2px solid var(--accent); }
+.field-label { font-weight: 700; font-size: 16px; margin-bottom: 6px; }

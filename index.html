@@ -54,7 +54,8 @@
     <section id="view-home" class="view">
 
       <div class="card">
-        <h2>Søg stregkode</h2>
+        <h2>Scan stregkode</h2>
+        <p class="muted small" style="margin:-6px 0 12px">Scan eller skriv en stregkode. Findes den, vises delen – ellers kan du oprette den.</p>
         <form id="search-form" class="scan-row">
           <input id="search-input" type="text" inputmode="text" placeholder="Scan eller skriv stregkode"
                  autocomplete="off" autocapitalize="off" spellcheck="false">
@@ -65,6 +66,31 @@
           <button type="submit" class="btn primary">Søg</button>
         </form>
         <div id="search-result"></div>
+      </div>
+
+      <div class="card create-card" id="create-card" hidden>
+        <div class="card-head">
+          <h2>Opret ny komponent</h2>
+          <button type="button" id="create-cancel" class="btn ghost small-btn">Annullér</button>
+        </div>
+        <form id="create-form" class="form-grid">
+          <input type="hidden" id="create-barcode">
+          <div class="span-2">
+            <div class="field-label">Stregkode</div>
+            <div class="detail-barcode" id="create-code"></div>
+          </div>
+          <label>Type
+            <select id="create-type" required></select>
+          </label>
+          <label>Forhandler
+            <select id="create-dealer" required></select>
+          </label>
+          <label class="span-2"><span>Note <span class="muted small">(valgfri)</span></span>
+            <input id="create-note" type="text" maxlength="200">
+          </label>
+          <p class="muted small span-2" id="create-hint">Dato og tid gemmes automatisk.</p>
+          <button type="submit" class="btn primary block span-2">Gem komponent</button>
+        </form>
       </div>
 
       <!-- Underdele-tilstand: vises efter en motor er gemt -->
@@ -93,33 +119,6 @@
         </form>
         <h3 class="sub-head">Underdele på denne del</h3>
         <div id="child-list" class="list"></div>
-      </div>
-
-      <div class="card" id="create-card">
-        <h2>Opret ny komponent</h2>
-        <form id="create-form" class="form-grid">
-          <label class="span-2">Stregkode
-            <div class="scan-row">
-              <input id="create-barcode" type="text" required placeholder="Scan eller skriv stregkode"
-                     autocomplete="off" autocapitalize="off" spellcheck="false">
-              <button type="button" class="btn scan" data-scan-target="create-barcode" aria-label="Scan med kamera">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>
-                <span>Scan</span>
-              </button>
-            </div>
-          </label>
-          <label>Type
-            <select id="create-type" required></select>
-          </label>
-          <label>Forhandler
-            <select id="create-dealer" required></select>
-          </label>
-          <label class="span-2"><span>Note <span class="muted small">(valgfri)</span></span>
-            <input id="create-note" type="text" maxlength="200">
-          </label>
-          <p class="muted small span-2" id="create-hint">Dato og tid gemmes automatisk.</p>
-          <button type="submit" class="btn primary block span-2">Gem komponent</button>
-        </form>
       </div>
 
       <div class="card">

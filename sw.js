@@ -1,5 +1,5 @@
 // Service worker: app-skal caches, data hentes altid live fra Supabase
-const CACHE = "reservedele-v5";
+const CACHE = "reservedele-v6";
 const SHELL = ["./", "index.html", "styles.css", "app.js", "config.js", "manifest.webmanifest",
   "icons/app-icon-192.png", "icons/app-icon-512.png", "icons/app-apple-touch-icon.png", "icons/rotax-logo.png"];
 

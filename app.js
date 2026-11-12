@@ -160,7 +160,6 @@
     }
     $("#user-importer").textContent = (state.me.importerName || "–") + (isSuper() ? " (Rotax – alle importører)" : "");
     $("#readonly-banner").hidden = canEdit();
-    $("#create-card").hidden = !canEdit();
     $$(".add-row").forEach((f) => (f.hidden = !canEdit()));
     return true;
   }
@@ -273,6 +272,7 @@
     if (error) { out.innerHTML = `<p class="error">${esc(errMsg(error))}</p>`; return; }
 
     if (exact && data.length === 1) {
+      hideCreate();
       const p = data[0];
       const kids = p.child_count > 0 ? await fetchChildren(p.id) : [];
       out.innerHTML = `
@@ -297,11 +297,13 @@
       $$("[data-open]", out).forEach((a) => (a.onclick = (e) => { e.preventDefault(); openDetail(Number(a.dataset.open)); }));
       const kb = $("[data-kids]", out);
       if (kb) kb.onclick = () => openChildPanel(p);
+      $("#search-input").select();
       return;
     }
 
-    const createBtn = canEdit() ? `<button type="button" class="btn primary" id="create-from-search">Opret "${esc(code)}"</button>` : "";
+    const createBtn = canEdit() ? `<button type="button" class="btn primary" id="create-from-search">Opret "${esc(code)}" som ny</button>` : "";
     if (data.length > 0) {
+      hideCreate();
       out.innerHTML = `
         <div class="result none">
           <h3>${exact ? `${data.length} dele med denne stregkode` : `Ingen præcis match – ${data.length} der ligner`}</h3>
@@ -309,21 +311,44 @@
           ${exact ? "" : `<div class="actions">${createBtn}</div>`}
         </div>`;
       bindRows(out);
+    } else if (canEdit()) {
+      // Ikke fundet: vis opret-formularen direkte med stregkoden udfyldt
+      out.innerHTML = `<div class="result none"><h3>Ikke registreret</h3>
+        <p style="margin:0">Udfyld type og forhandler herunder for at oprette <strong>${esc(code)}</strong>.</p></div>`;
+      showCreate(code);
+      return;
     } else {
-      out.innerHTML = `
-        <div class="result none">
-          <h3>Ikke fundet</h3>
-          <p style="margin:0">Stregkoden <strong>${esc(code)}</strong> er ikke registreret.</p>
-          <div class="actions">${createBtn}</div>
-        </div>`;
+      out.innerHTML = `<div class="result none"><h3>Ikke fundet</h3>
+        <p style="margin:0">Stregkoden <strong>${esc(code)}</strong> er ikke registreret.</p></div>`;
     }
     const cb = $("#create-from-search");
-    if (cb) cb.onclick = () => {
-      $("#create-barcode").value = code;
-      $("#create-card").scrollIntoView({ behavior: "smooth", block: "start" });
-      setTimeout(() => $("#create-type").focus(), 300);
-    };
+    if (cb) cb.onclick = () => showCreate(code);
   }
+
+  function showCreate(code) {
+    $("#create-barcode").value = code;
+    $("#create-code").textContent = code;
+    $("#create-card").hidden = false;
+    updateCreateHint();
+    setTimeout(() => {
+      $("#create-card").scrollIntoView({ behavior: "smooth", block: "nearest" });
+      $("#create-type").focus();
+    }, 50);
+  }
+  function hideCreate() {
+    $("#create-card").hidden = true;
+    $("#create-barcode").value = "";
+    $("#create-code").textContent = "";
+    $("#create-note").value = "";
+  }
+  // Ryd forsiden, klar til næste scanning
+  function resetHome() {
+    hideCreate();
+    $("#search-input").value = "";
+    $("#search-result").innerHTML = "";
+    $("#search-input").focus();
+  }
+  $("#create-cancel").addEventListener("click", resetHome);
 
   $("#search-form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -348,14 +373,12 @@
         toast("Stregkoden er allerede registreret", "err");
         $("#search-input").value = barcode;
         search(barcode);
-        $("#search-form").scrollIntoView({ behavior: "smooth" });
       } else {
         toast(errMsg(error), "err");
       }
       return;
     }
-    $("#create-barcode").value = "";
-    $("#create-note").value = "";
+    resetHome();
     loadRecent();
 
     const t = typeById(type_id);
@@ -365,16 +388,6 @@
       if (p) openChildPanel(p);
     } else {
       toast("Komponent gemt ✓", "ok");
-      $("#create-barcode").focus();
-    }
-  });
-
-  // Enter i stregkode-feltet (fx fra USB-scanner) springer til næste felt
-  $("#create-barcode").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if ($("#create-type").value && $("#create-dealer").value) $("#create-form").requestSubmit();
-      else ($("#create-type").value ? $("#create-dealer") : $("#create-type")).focus();
     }
   });
 
@@ -383,6 +396,9 @@
     state.childParent = parent;
     if (currentRoute !== "home") location.hash = "#/";
     if ($("#detail-dialog").open) $("#detail-dialog").close();
+    hideCreate();
+    $("#search-input").value = "";
+    $("#search-result").innerHTML = "";
     $("#child-panel").hidden = false;
     $("#child-parent").innerHTML = `
       <span class="pill">${esc(parent.type_name)}</span>
@@ -416,8 +432,9 @@
   }
   $("#child-done").addEventListener("click", () => {
     closeChildPanel();
+    resetHome();
     loadRecent();
-    $("#create-barcode").focus();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
   async function attachExisting(existing, parent) {
@@ -857,12 +874,6 @@
       case "search-input":
         search(code);
         break;
-      case "create-barcode": {
-        const existing = await findOwnByBarcode(code);
-        if (existing) toast("OBS: stregkoden er allerede registreret", "err");
-        ($("#create-type").value ? $("#create-dealer") : $("#create-type")).focus();
-        break;
-      }
       case "child-barcode":
         if ($("#child-type").value) $("#child-form").requestSubmit();
         else $("#child-type").focus();
