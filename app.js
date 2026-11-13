@@ -1270,46 +1270,142 @@
   }
 
   // ---------------- Kamera-scanner ----------------
+  // Egen kameravisning + ZXing (WebAssembly): høj opløsning, autofokus, lys og "tag billede".
   const scanDlg = $("#scanner");
-  let scanner = null, scanTarget = null;
-  const FORMATS = (typeof Html5QrcodeSupportedFormats !== "undefined") ? [
-    "CODE_128", "CODE_39", "CODE_93", "EAN_13", "EAN_8", "UPC_A", "UPC_E",
-    "ITF", "CODABAR", "QR_CODE", "DATA_MATRIX"
-  ].map((f) => Html5QrcodeSupportedFormats[f]).filter((v) => v !== undefined) : undefined;
+  const video = $("#scanner-video");
+  const ZXING_URL = "https://cdn.jsdelivr.net/npm/zxing-wasm@2.2.4/dist/iife/reader/index.js";
+  const READ_OPTS = {
+    formats: ["Code128", "Code39", "Code93", "EAN-13", "EAN-8", "UPC-A", "UPC-E", "ITF", "Codabar", "QRCode", "DataMatrix"],
+    tryHarder: true, tryInvert: true, tryRotate: true, maxNumberOfSymbols: 1,
+  };
+  let scanTarget = null, stream = null, track = null, loopTimer = null, busy = false, torchOn = false, scanning = false;
+  let zxingLoading = null;
+  const scanMsg = (key) => { $("#scanner-msg").textContent = t(key); };
+
+  function loadZXing() {
+    if (window.ZXingWASM) return Promise.resolve();
+    return (zxingLoading ||= new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = ZXING_URL;
+      s.onload = resolve;
+      s.onerror = () => { zxingLoading = null; reject(new Error("zxing")); };
+      document.head.appendChild(s);
+    }));
+  }
 
   async function openScanner(targetId) {
     scanTarget = targetId;
+    torchOn = false;
+    $("#scanner-torch").hidden = true;
+    $("#scanner-torch").classList.remove("on");
     scanDlg.showModal();
-    $("#scanner-msg").textContent = t("scanner.starting");
+    scanMsg("scanner.starting");
     try {
-      scanner = new Html5Qrcode("scanner-view", {
-        formatsToSupport: FORMATS,
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-        verbose: false
-      });
-      await scanner.start(
-        { facingMode: "environment" },
-        { fps: 12, qrbox: (w, h) => ({ width: Math.floor(w * 0.85), height: Math.floor(Math.min(h, w) * 0.45) }) },
-        onScan,
-        () => {}
-      );
-      $("#scanner-msg").textContent = t("scanner.hold");
+      const [, s] = await Promise.all([
+        loadZXing(),
+        navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        }),
+      ]);
+      if (!scanDlg.open) { s.getTracks().forEach((tr) => tr.stop()); return; }
+      stream = s;
+      track = s.getVideoTracks()[0];
+      try {
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+        if (caps.focusMode && caps.focusMode.includes("continuous")) {
+          await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
+        }
+        $("#scanner-torch").hidden = !caps.torch;
+      } catch {}
+      video.srcObject = s;
+      await video.play();
+      scanMsg("scanner.hold");
+      scanning = true;
+      loopTimer = setInterval(scanFrame, 160);
     } catch (err) {
-      $("#scanner-msg").textContent = t("scanner.fail");
       console.error(err);
+      // Kameraet kan ikke startes (fx ingen tilladelse) – "Tag billede" virker stadig
+      scanMsg("scanner.fail");
     }
   }
 
+  // Aflæs området inden for den røde ramme
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  async function scanFrame() {
+    if (busy || !scanning || !video.videoWidth) return;
+    busy = true;
+    try {
+      const vw = video.videoWidth, vh = video.videoHeight;
+      const ew = video.clientWidth || vw, eh = video.clientHeight || vh;
+      // object-fit: cover → find det synlige udsnit af videoen
+      const scale = Math.max(ew / vw, eh / vh);
+      const visW = ew / scale, visH = eh / scale;
+      const offX = (vw - visW) / 2, offY = (vh - visH) / 2;
+      // Rammen: 4–96 % i bredden, 25–75 % i højden af det synlige
+      const sx = offX + visW * 0.04, sy = offY + visH * 0.25, sw = visW * 0.92, sh = visH * 0.5;
+      const maxW = 1400, k = Math.min(1, maxW / sw);
+      canvas.width = Math.round(sw * k);
+      canvas.height = Math.round(sh * k);
+      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const res = await ZXingWASM.readBarcodes(data, READ_OPTS);
+      const hit = res.find((r) => r.isValid && r.text);
+      if (hit && scanning) onScan(hit.text);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      busy = false;
+    }
+  }
+
+  function stopCamera() {
+    scanning = false;
+    clearInterval(loopTimer);
+    loopTimer = null;
+    if (stream) stream.getTracks().forEach((tr) => tr.stop());
+    stream = null;
+    track = null;
+    video.srcObject = null;
+  }
+
   async function closeScanner() {
-    try { if (scanner && scanner.isScanning) await scanner.stop(); } catch {}
-    try { scanner && scanner.clear(); } catch {}
-    scanner = null;
+    stopCamera();
     if (scanDlg.open) scanDlg.close();
   }
 
+  $("#scanner-torch").addEventListener("click", async () => {
+    if (!track) return;
+    try {
+      torchOn = !torchOn;
+      await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+      $("#scanner-torch").classList.toggle("on", torchOn);
+    } catch { torchOn = false; }
+  });
+
+  // Tag et rigtigt foto med telefonens kamera og aflæs det (skarpere end video)
+  $("#scanner-file").addEventListener("change", async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    scanMsg("scanner.photoReading");
+    try {
+      await loadZXing();
+      const res = await ZXingWASM.readBarcodes(file, { ...READ_OPTS, tryDownscale: true });
+      const hit = res.find((r) => r.isValid && r.text);
+      if (hit) { onScan(hit.text); return; }
+      scanMsg("scanner.photoFail");
+    } catch (err) {
+      console.error(err);
+      scanMsg("scanner.photoFail");
+    }
+  });
+
   async function onScan(text) {
     const code = cleanCode(text);
-    if (!code) return;
+    if (!code || !scanDlg.open) return;
+    scanning = false;
     if (navigator.vibrate) navigator.vibrate(80);
     await closeScanner();
     const input = document.getElementById(scanTarget);

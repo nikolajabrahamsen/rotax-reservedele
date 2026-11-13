@@ -197,8 +197,12 @@
 
       "scanner.title": "Peg kameraet mod stregkoden",
       "scanner.starting": "Starter kamera…",
-      "scanner.hold": "Hold stregkoden inden for rammen",
-      "scanner.fail": "Kunne ikke starte kameraet. Tjek at appen har adgang til kameraet.",
+      "scanner.hold": "Hold stregkoden i rammen, ca. 10–15 cm væk. Undgå genskin.",
+      "scanner.photo": "Tag billede i stedet",
+      "scanner.photoReading": "Læser billedet…",
+      "scanner.photoFail": "Ingen stregkode fundet på billedet. Gå lidt tættere på og undgå genskin.",
+      "scanner.torch": "Lys",
+      "scanner.fail": "Kunne ikke starte kameraet. Tjek at appen har adgang til kameraet – eller brug \"Tag billede i stedet\".",
 
       "nav.admin": "Admin",
       "admin.usersTitle": "Brugere",
@@ -467,8 +471,12 @@
 
       "scanner.title": "Point the camera at the barcode",
       "scanner.starting": "Starting camera…",
-      "scanner.hold": "Hold the barcode inside the frame",
-      "scanner.fail": "Could not start the camera. Check that the app has camera access.",
+      "scanner.hold": "Hold the barcode inside the frame, about 10–15 cm away. Avoid glare.",
+      "scanner.photo": "Take a photo instead",
+      "scanner.photoReading": "Reading the photo…",
+      "scanner.photoFail": "No barcode found in the photo. Move a little closer and avoid glare.",
+      "scanner.torch": "Light",
+      "scanner.fail": "Could not start the camera. Check that the app has camera access – or use \"Take a photo instead\".",
 
       "nav.admin": "Admin",
       "admin.usersTitle": "Users",
@@ -737,8 +745,12 @@
 
       "scanner.title": "Kamera auf den Barcode richten",
       "scanner.starting": "Kamera wird gestartet…",
-      "scanner.hold": "Barcode in den Rahmen halten",
-      "scanner.fail": "Kamera konnte nicht gestartet werden. Prüfen Sie, ob die App Zugriff auf die Kamera hat.",
+      "scanner.hold": "Barcode in den Rahmen halten, ca. 10–15 cm Abstand. Spiegelungen vermeiden.",
+      "scanner.photo": "Stattdessen Foto aufnehmen",
+      "scanner.photoReading": "Foto wird gelesen…",
+      "scanner.photoFail": "Kein Barcode im Foto gefunden. Etwas näher heran und Spiegelungen vermeiden.",
+      "scanner.torch": "Licht",
+      "scanner.fail": "Kamera konnte nicht gestartet werden. Prüfen Sie den Kamerazugriff – oder nutzen Sie „Stattdessen Foto aufnehmen“.",
 
       "nav.admin": "Admin",
       "admin.usersTitle": "Benutzer",
